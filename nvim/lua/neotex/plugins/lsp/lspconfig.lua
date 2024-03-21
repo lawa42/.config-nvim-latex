@@ -22,6 +22,17 @@ return {
       vim.fn.sign_define(hl, { text = icon, texthl = hl, numhl = "" })
     end
 
+    -- configure TexLab server
+    lspconfig["texlab"].setup({
+      capabilities = default,
+      settings = {
+        chktex = {
+          onOpenAndSave = true,
+          onEdit = true,
+        },
+      },
+    })
+
     -- configure html server
     lspconfig["html"].setup({
       capabilities = default,

@@ -1,10 +1,10 @@
 return {
   "gaoDean/autolist.nvim",
-  filetype = {
+  ft = {
     "markdown",
-    -- "text",
-    -- "tex",
-    -- "plaintex",
+    "text",
+    "tex",
+    "plaintex",
     "norg",
   },
   config = function()

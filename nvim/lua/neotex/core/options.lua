@@ -42,7 +42,7 @@ local options = {
   -- EDIT
   spell = true,                   -- turns on spellchecker
   spelllang = { 'en_us' },        -- sets spelling dictionary
---  clipboard = "unnamedplus",      -- allows neovim to access the system clipboard
+  clipboard = "unnamedplus",      -- allows neovim to access the system clipboard
   mouse = "a",                    -- allow the mouse to be used in neovim
   mousescroll = "ver:2,hor:4",    -- change the speed of the scroll wheel
   ignorecase = true,              -- ignore case in search patterns
@@ -59,15 +59,15 @@ end
 
 -- CLIPBOARD -- (for yanky)
 -- May help Arch/Debian Linux users
--- vim.g.clipboard = {
---   name = "xsel_override",
---   copy = {
---     ["+"] = "xsel --input --clipboard",
---     ["*"] = "xsel --input --primary",
---   },
---   paste = {
---     ["+"] = "xsel --output --clipboard",
---     ["*"] = "xsel --output --primary",
---   },
---   cache_enabled = 1,
--- }
+vim.g.clipboard = {
+  name = "xsel_override",
+  copy = {
+    ["+"] = "xsel --input --clipboard",
+    ["*"] = "xsel --input --primary",
+  },
+  paste = {
+    ["+"] = "xsel --output --clipboard",
+    ["*"] = "xsel --output --primary",
+  },
+  cache_enabled = 1,
+}

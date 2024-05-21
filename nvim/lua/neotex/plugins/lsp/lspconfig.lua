@@ -86,21 +86,21 @@ return {
       },
     })
 
-    -- configure html server
-    lspconfig["html"].setup({
-      capabilities = default,
-    })
+    -- -- configure html server
+    -- lspconfig["html"].setup({
+    --   capabilities = default,
+    -- })
 
-    -- configure typescript server with plugin
-    lspconfig["tsserver"].setup({
-      capabilities = default,
-    })
+    -- -- configure typescript server with plugin
+    -- lspconfig["tsserver"].setup({
+    --   capabilities = default,
+    -- })
 
-    -- configure emmet language server
-    lspconfig["emmet_ls"].setup({
-      capabilities = default,
-      filetypes = { "html", "typescriptreact", "javascriptreact" }, -- , "css", "sass", "scss", "less", "svelte"
-    })
+    -- -- configure emmet language server
+    -- lspconfig["emmet_ls"].setup({
+    --   capabilities = default,
+    --   filetypes = { "html", "typescriptreact", "javascriptreact" }, -- , "css", "sass", "scss", "less", "svelte"
+    -- })
 
     -- configure python server
     lspconfig["pyright"].setup({

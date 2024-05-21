@@ -14,19 +14,27 @@ snippet gloss "Glossary Entry"  b
 # beamer frame enviornment
 snippet frame "Beamer Frame" b
 	\begin{frame}
-
-		\textbf{${1:label}} ${2:claim}
-		\vspace{.2in}
-		\pause
-
-
+	  \frametitle{${1:title}}
+    ${0}
 	\end{frame}
-
-	%%% -------------------------------------------------------
 #
 
+# beamer 2 column environment
+snippet col2 "Two column environment for Beamer" b
+  \begin{columns}[${1:T}]
+    \column{.5\textwidth}
+    ${2:${VISUAL}}
+    \column{.5\textwidth}
+    ${0}
+  \\end{columns}
+#
 
-
+# beamer block environment
+snippet block "Block environment"
+  \begin{block}{${1:title}\mathstrut}
+	   ${0}
+  \end{block}
+#	
 
 # beamer item enviornment
 snippet bemit "Beamer Item" b
@@ -34,8 +42,6 @@ snippet bemit "Beamer Item" b
 	\vspace{.2in}
 	\pause
 #
-
-
 
 
 # custom theorem enviornment
@@ -123,20 +129,20 @@ snippet labelalign "Label Align" b
 # Enumerate
 snippet enum "Enumerate" b
 	\begin{enumerate}
-		\item[${1:\it }${2}:] ${0}
+		\item ${0}
 	\end{enumerate}
 #
 
 # Itemize
 snippet item "Itemize" b
 	\begin{itemize}
-		\item[${1:\it} ${2:Label:}] ${0}
+		\item ${0}
 	\end{itemize}
 #
 
 #Item
 snippet i "Item"
-	\item[${1:\it} ${2}:] ${0}
+	\item ${0}
 #
 
 # Cases
@@ -152,42 +158,45 @@ snippet case "Cases"
 snippet sec "Section" b
 	\section{${1:Name}}%
 		\label{sec:${2:$1}}
-		${0}
+
+	${0}
 #
 
 # Sub Section
 snippet sub "Sub Section" b
 	\subsection{${1:Name}}%
 		\label{sub:${2:$1}}
-		${0}
+
+	${0}
 #
 
 # Sub Sub Section
 snippet ssub "Sub Sub Section" b
 	\subsubsection{${1:Name}}%
 		\label{sub:${2:$1}}
-		${0}
+
+	${0}
 #
 
 # Hyper Section
 snippet hsec "Hyper Section" b
 	\hypsection{${1:Name}}%
 		\label{sec:${2:$1}}
-		${0}
+	${0}
 #
 
 # Hyper Sub Section
 snippet hsub "Hyper Sub Section" b
 	\hypsubsection{${1:Name}}%
 		\label{sub:${2:$1}}
-		${0}
+	${0}
 #
 
 # Hyper Sub Sub Section
 snippet hssub "Hyper Sub Sub Section" b
 	\hypsubsubsection{${1:Name}}%
 		\label{sub:${2:$1}}
-		${0}
+	${0}
 #
 
 #Formating text: italic, bold, underline, small capital, emphase ..
@@ -252,6 +261,24 @@ snippet fig "Figure environment" b
 	\end{center}
 	\caption{${3}}
 	\label{fig:${4}}
+	\end{figure}
+	${0}
+#
+
+
+snippet tab "Table environment" b
+	\begin{table}[${tbp:1}]
+	\begin{center}
+	\caption{${2}}
+	\label{tab:${3}}
+		\begin{tabular}[${lcr:4}]
+			\toprule
+			${5}
+			\midrule
+			${6}
+			\bottomrule
+		\end{tabular}
+	\end{center}
 	\end{figure}
 	${0}
 #

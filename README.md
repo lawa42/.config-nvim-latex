@@ -7,6 +7,12 @@
 <!--  ╚═╝  ╚═══╝╚══════╝ ╚═════╝    ╚═╝   ╚══════╝╚═╝  ╚═╝ -->
 <!-- ``` -->
 <!---->
+
+<div style="display: flex; flex-direction: row;">
+    <img src="images/VimType.png" alt="Typewriter Comic" style="width: 49%;">
+    <img src="images/VimExcavator.png" alt="Excavator Comic" style="width: 49%;">
+</div>
+
 # .config
 
 NOTE: I have recently (Jan 2024) migrated to Lazy package manager from Packer and refactored the config accordingly.
@@ -19,6 +25,11 @@ It is running `NeoVim v0.9.5` really fast with some nice features, including:
 - Pandoc (convert between file formats)
 - Telescope (search citations, files, words, etc.)
 - And lots more!
+
+![Screenshot of the configuration](images/screenshot_cite.png)
+
+<!-- ![Vim Typewriter Comic](images/VimType.png) -->
+<!-- ![Vim Excavator Comic](images/VimExcavator.png) -->
 
 Running the unstable release of `NeoVim` may lead to errors, and so is discouraged.
 If there are features or plugins that you are aware of and would like to see integrated, don't hesitate to submit a feature request in an issue.
@@ -67,9 +78,10 @@ brew upgrade
 ```
 
 If Homebrew has not been installed, you may install it by running the following two commands.
-Note that if you don't have `xcode` installed, this may take a while but is essential to what follows.
+Note that if you don't have `xcode` installed (determined by the first command below), installing it may take a while but is essential for what follows.
 
 ```
+xcode-select --version
 xcode-select --install
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
@@ -80,8 +92,9 @@ My reasons for doing this is ergonomics given which keys I'll be using most ofte
 Alternatively, you can make changes to the mappings that I've included in the config, though this may take a little more work than swapping things around in `System Preferences -> Keyboard`.
 Whatever you do, I recommend finding something comfortable before you begin using your NeoVim config, committing its key-bindings to memory.
 
-## [Fish](https://fishshell.com/)
+## [Fish](https://fishshell.com/) (Optional)
 
+Installing `Fish` is optional but will make working in the terminal a lot easier (including autocomplete).
 To install the Fish shell, run:
 
 ```
@@ -133,17 +146,27 @@ fish_vi_key_bindings
 
 If you aren't already comfy with vim-like modes, the vi-mode in Fish may be cumbersome, and best to avoid during the installation.
 
+### Extras
+
+Optionally, you can install `zoxide` which will help you move around in the terminal with less friction:
+
+```
+brew install zoxide
+```
+
+If `Homebrew` has any trouble recognizing paths inside `Fish`, you can run the following:
+
+```
+/opt/homebrew/bin/brew shellenv >> ~/.config/fish/config.fish # Ensures that brew paths are recognised inside fish
+```
+
+
 ## Dependencies
 
-Check to see that you have `git` installed by running:
+Check to see that you have `git` installed by running the first command below, running the second if it is not installed already:
 
 ```
 git --version
-```
-
-If Git is not installed, run:
-
-```
 brew install git
 ```
 
@@ -193,7 +216,7 @@ brew install pandoc
 brew install pandoc-plot
 brew install npm
 brew install wget
-sudo pip3 install neovim-remote
+brew install neovim-remote
 ```
 
 ## [NeoVim](https://neovim.io/)
@@ -697,7 +720,7 @@ latexmk --version
 
 ## [Nerd Fonts](https://github.com/ryanoasis/nerd-fonts)
 
-In order for NeoVim to load icons, it will be imporant to install a NerdFont.
+In order for NeoVim to load icons, it will be important to install a NerdFont.
 For simplicity, I have included RobotoMono in `~/.config/fonts` which you can now move to the appropriate folder on your computer by entering the following in the terminal:
 
 ```
@@ -705,7 +728,7 @@ sudo cp -R ~/.config/fonts/RobotoMono/ /usr/share/fonts
 ```
 
 If you intend to use the stock terminal, you will need to go into the terminal's settings to change the font to RobotoMono regular.
-You are now ready to write LaTex in NeoVim inside the stock terminal.
+You are now ready to write LaTeX in NeoVim inside the stock terminal.
 
 ## [Zathura](https://pwmt.org/projects/zathura/)
 
@@ -1174,15 +1197,15 @@ latexmk --version
 
 ## [Nerd Fonts](https://github.com/ryanoasis/nerd-fonts)
 
-In order for NeoVim to load icons, it will be imporant to install a NerdFont.
-For simplicity, I have included RobotoMono in `~/.config/fonts` which you can now move to the appropriate folder on your computer by entering the following in the terminal:
+In order for NeoVim to load icons, it will be important to install a NerdFont.
+For simplicity, I have included [RobotoMono Nerd](https://www.nerdfonts.com/font-downloads) fonts in `~/.config/fonts` which you can now move to the appropriate folder on your computer by entering the following in the terminal:
 
 ```
-sudo cp -R ~/.config/fonts/RobotoMono/ /usr/share/fonts
+sudo cp -R ~/.config/fonts/RobotoMono /usr/share/fonts/truetype/
 ```
 
-If you intend to use the stock terminal, you will need to go into the terminal's settings to change the font to RobotoMono regular.
-You are now ready to write LaTex in NeoVim inside the stock terminal.
+If you intend to use the stock terminal, you will need to go into the terminal's settings to change the font to `RobotoMono Nerd Font` (regular).
+You are now ready to write LaTeX in NeoVim inside the stock terminal.
 
 ## [Zathura](https://pwmt.org/projects/zathura/)
 
@@ -1601,3 +1624,4 @@ setxkbmap
 ```
 
 Once you achieve the desired result, reboot and confirm that the mappings are running as desired.
+

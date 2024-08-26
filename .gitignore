@@ -39,3 +39,17 @@ gtk-4.0/gtk.css
 cef_user_data/WidevineCdm
 evince
 temp
+fish/fish_variables
+alacritty/alacritty.toml
+Code
+configstore/
+nixpkgs/
+plots/
+.gitignore
+configstore.save
+nixpkgs.save/overlays
+plots.save
+VSCodium
+torrential
+Smart Code ltd/Stremio.conf
+nvim/lazy-lock.json

@@ -19,63 +19,39 @@ return {
     local signs = { Error = "", Warn = "", Hint = "󰠠", Info = "" }
     for type, icon in pairs(signs) do
       local hl = "DiagnosticSign" .. type
-      -- Use vim.diagnostic.config instead of sign_define (in the block after this loop)
+      vim.fn.sign_define(hl, { text = icon, texthl = hl, numhl = "" })
     end
 
-    -- Modern way to configure diagnostic signs
-    vim.diagnostic.config({
-      signs = {
-        text = {
-          [vim.diagnostic.severity.ERROR] = signs.Error,
-          [vim.diagnostic.severity.WARN] = signs.Warn,
-          [vim.diagnostic.severity.HINT] = signs.Hint,
-          [vim.diagnostic.severity.INFO] = signs.Info,
+    -- configure TexLab server
+    lspconfig["texlab"].setup({
+      capabilities = default,
+      settings = {
+        chktex = {
+          onOpenAndSave = true,
+          onEdit = true,
         },
       },
+    })
+
+    -- configure html server
+    lspconfig["html"].setup({
+      capabilities = default,
+    })
+
+    -- configure typescript server with plugin
+    lspconfig["tsserver"].setup({
+      capabilities = default,
+    })
+
+    -- configure emmet language server
+    lspconfig["emmet_ls"].setup({
+      capabilities = default,
+      filetypes = { "html", "typescriptreact", "javascriptreact" }, -- , "css", "sass", "scss", "less", "svelte"
     })
 
     -- configure python server
     lspconfig["pyright"].setup({
       capabilities = default,
-    })
-
-    -- configure texlab (LaTeX LSP) server
-    lspconfig["texlab"].setup({
-      capabilities = default,
-      settings = {
-        python = {
-          analysis = {
-            extraPaths = { "/home/benjamin/Documents/Philosophy/Projects/ModelChecker/Code/src" },
-            typeCheckingMode = "basic",
-          }
-        },
-        texlab = {
-          build = {
-            onSave = true,
-          },
-          chktex = {
-            onEdit = false,
-            onOpenAndSave = false,
-          },
-          diagnosticsDelay = 300,
-          -- formatterLineLength = 80,
-          -- bibtexFormatter = "texlab",
-          -- -- Set up bibliography paths
-          -- bibParser = {
-          --   enabled = true,
-          --   -- Add paths where your .bib files might be located
-          --   paths = {
-          --     "./bib",           -- bib folder in current directory
-          --     "~/texmf/bibtex/bib", -- bib folder in Documents
-          --     vim.fn.expand("$HOME/texmf/bibtex/bib"), -- Expanded path to Bibliography folder
-          --   },
-          -- },
-          -- -- Enable forward search and inverse search if needed
-          -- forwardSearch = {
-          --   enabled = true,
-          -- },
-        },
-      },
     })
 
     -- configure lua server (with special settings)

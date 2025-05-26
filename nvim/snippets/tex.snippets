@@ -1,6 +1,5 @@
 # -- SNIPPETS --
-
-
+#
 # new glossary entry
 snippet gloss "Glossary Entry"  b
 	\newglossaryentry{${1:entry}}{
@@ -11,22 +10,31 @@ snippet gloss "Glossary Entry"  b
 #
 
 
+
 # beamer frame enviornment
 snippet frame "Beamer Frame" b
 	\begin{frame}
-
-		\textbf{${1:label}} ${2:claim}
-		\vspace{.2in}
-		\pause
-
-
+	  \frametitle{${1:title}}
+    ${0}
 	\end{frame}
-
-	%%% -------------------------------------------------------
 #
 
+# beamer 2 column environment
+snippet col2 "Two column environment for Beamer" b
+  \begin{columns}[${1:T}]
+    \column{.5\textwidth}
+    ${2:${VISUAL}}
+    \column{.5\textwidth}
+    ${0}
+  \\end{columns}
+#
 
-
+# beamer block environment
+snippet block "Block environment"
+  \begin{block}{${1:title}\mathstrut}
+	   ${0}
+  \end{block}
+#	
 
 # beamer item enviornment
 snippet bemit "Beamer Item" b
@@ -36,102 +44,6 @@ snippet bemit "Beamer Item" b
 #
 
 
-# Ttheorem enviornment
-snippet Tthm "Ttheorem" b
-	\vspace{.05in}
-	\begin{Tthm} \label{${1:label}}
-		${2:claim}
-	\end{Tthm}
-
-	\begin{proof}
-		${0}
-    \qed
-	\end{proof}
-#
-
-
-# Mtheorem enviornment
-snippet Mthm "Mtheorem" b
-	\vspace{.05in}
-	\begin{Mthm} \label{${1:label}}
-		${2:claim}
-	\end{Mthm}
-
-	\begin{proof}
-		${0}
-    \qed
-	\end{proof}
-#
-
-
-# Ctheorem enviornment
-snippet Cthm "Ctheorem" b
-	\vspace{.05in}
-	\begin{Cthm} \label{${1:label}}
-		${2:claim}
-	\end{Cthm}
-
-	\begin{proof}
-		${0}
-    \qed
-	\end{proof}
-#
-
-
-# Rtheorem enviornment
-snippet Rthm "Rtheorem" b
-	\vspace{.05in}
-	\begin{Rthm} \label{${1:label}}
-		${2:claim}
-	\end{Rthm}
-
-	\begin{proof}
-		${0}
-    \qed
-	\end{proof}
-#
-
-
-# Ltheorem enviornment
-snippet Lthm "Ltheorem" b
-	\vspace{.05in}
-	\begin{Lthm} \label{${1:label}}
-		${2:claim}
-	\end{Lthm}
-
-	\begin{proof}
-		${0}
-    \qed
-	\end{proof}
-#
-
-
-# Ptheorem enviornment
-snippet Pthm "Ptheorem" b
-	\vspace{.05in}
-	\begin{Pthm} \label{${1:label}}
-		${2:claim}
-	\end{Pthm}
-
-	\begin{proof}
-		${0}
-    \qed
-	\end{proof}
-#
-
-
-# Dtheorem enviornment
-snippet Dthm "Dtheorem" b
-	\vspace{.05in}
-	\begin{Dthm} \label{${1:label}}
-		${2:claim}
-	\end{Dthm}
-
-	\begin{proof}
-		${0}
-    \qed
-	\end{proof}
-#
 
 
 # custom theorem enviornment
@@ -143,7 +55,6 @@ snippet customthm "Custom Theorem" b
 
 	\begin{Answer}
 		${0}
-    \qed
 	\end{Answer}
 #
 
@@ -180,7 +91,7 @@ snippet nc "New Command" b
 
 #usepackage
 snippet up "Use Package" b
-	\usepackage${1}{${2:package}} ${0}
+	\usepackage[${1:options}]{${2:package}} ${0}
 #
 
 # \begin{}...\end{}
@@ -220,20 +131,20 @@ snippet labelalign "Label Align" b
 # Enumerate
 snippet enum "Enumerate" b
 	\begin{enumerate}
-		\item[${1:\it }${2}:] ${0}
+		\item ${0}
 	\end{enumerate}
 #
 
 # Itemize
 snippet item "Itemize" b
 	\begin{itemize}
-		\item[${1:\it} ${2:Label:}] ${0}
+		\item ${0}
 	\end{itemize}
 #
 
 #Item
 snippet i "Item"
-	\item[${1:\it} ${2}:] ${0}
+	\item ${0}
 #
 
 # Cases
@@ -249,55 +160,45 @@ snippet case "Cases"
 snippet sec "Section" b
 	\section{${1:Name}}%
 		\label{sec:${2:$1}}
-		${0}
+
+	${0}
 #
 
 # Sub Section
 snippet sub "Sub Section" b
 	\subsection{${1:Name}}%
 		\label{sub:${2:$1}}
-		${0}
+
+	${0}
 #
 
 # Sub Sub Section
 snippet ssub "Sub Sub Section" b
 	\subsubsection{${1:Name}}%
 		\label{sub:${2:$1}}
-		${0}
+
+	${0}
 #
 
 # Hyper Section
 snippet hsec "Hyper Section" b
 	\hypsection{${1:Name}}%
 		\label{sec:${2:$1}}
-		${0}
+	${0}
 #
 
 # Hyper Sub Section
 snippet hsub "Hyper Sub Section" b
 	\hypsubsection{${1:Name}}%
 		\label{sub:${2:$1}}
-		${0}
+	${0}
 #
 
 # Hyper Sub Sub Section
 snippet hssub "Hyper Sub Sub Section" b
 	\hypsubsubsection{${1:Name}}%
 		\label{sub:${2:$1}}
-		${0}
-#
-
-# hilbert proof
-snippet hilbert "Hilbert" wi
-  \begin{hilbert}
-    \from{${1}} {${2}}
-    ${0}
-  \end{hilbert}
-#
-
-# hilbert proof line
-snippet from "From" wi
-	\from{${1}} {${0}}
+	${0}
 #
 
 #Formating text: italic, bold, underline, small capital, emphase ..
@@ -338,16 +239,8 @@ snippet ms "Mathscr" w
 	\mathscr{${1}}${0}
 #
 
-snippet aref "Bold Ref" w
-	\textbf{\aref{${1:Ref}}}${0}
-#
-
 snippet bref "Bold Ref" w
 	\textbf{\ref{${1:Ref}}}${0}
-#
-
-snippet eref "Double Ref" w
-	\eref{${1}}{${2}}${0}
 #
 
 #misc
@@ -370,6 +263,24 @@ snippet fig "Figure environment" b
 	\end{center}
 	\caption{${3}}
 	\label{fig:${4}}
+	\end{figure}
+	${0}
+#
+
+
+snippet tab "Table environment" b
+	\begin{table}[${tbp:1}]
+	\begin{center}
+	\caption{${2}}
+	\label{tab:${3}}
+		\begin{tabular}[${lcr:4}]
+			\toprule
+			${5}
+			\midrule
+			${6}
+			\bottomrule
+		\end{tabular}
+	\end{center}
 	\end{figure}
 	${0}
 #
@@ -397,7 +308,6 @@ snippet lemma "Lemma" bi
 	\begin{Lthm} \label{lemma:${1:label}}
 		${0:${VISUAL}}
 	\end{Lthm}
-  \vspace{-.2in}
 
 snippet prop "Proposition" bi
 	\begin{Pthm} \label{${1:label}}
@@ -411,9 +321,7 @@ snippet thrm "Theorem" bi
 
 snippet prf "Proof" bi
 	\begin{quote} 
-		\textit{Proof:}
-		${0:${VISUAL}}
-		\qed
+		\textit{Proof:} ${0:${VISUAL}}
 	\end{quote}
 
 snippet def "Definition" bi

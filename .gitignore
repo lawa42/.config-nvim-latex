@@ -63,5 +63,5 @@ nvim/specs
 systemd/user
 nvim/examples
 LazyVim
-
+nvim/lazy-lock.json
 **/.claude/

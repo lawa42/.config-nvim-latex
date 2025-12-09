@@ -277,7 +277,7 @@ sub_recipes:
 
 # Hard barrier enforcement via retry checks
 retry:
-  max_attempts: 3
+  max_retries: 3
 
   # Validation checks run after recipe completes
   checks:

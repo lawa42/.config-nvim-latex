@@ -1,3 +1,0 @@
-GOOSE_PROVIDER: gemini-cli
-GOOSE_MODEL: gemini-3.0-pro
-GOOSE_MODE: auto

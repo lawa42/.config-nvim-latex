@@ -1,0 +1,111 @@
+description: Research workflow - Topic naming and research specialist orchestration (ported from /research command)
+
+parameters:
+  - key: topic
+    input_type: string
+    requirement: user_prompt
+    description: Natural language description of research topic
+
+  - key: complexity
+    input_type: integer
+    requirement: optional
+    description: Research complexity level (1-4)
+    default: 2
+
+instructions: |
+  You are orchestrating a research workflow with two subrecipes:
+  1. Topic naming (semantic directory name generation)
+  2. Research specialist (codebase analysis and report creation)
+
+  ## STEP 1: Generate Workflow ID and Topic Slug
+
+  Execute the following commands to generate unique identifiers:
+  ```bash
+  # Generate workflow ID
+  WORKFLOW_ID=$(date +%s)
+
+  # Find next topic number
+  TOPIC_NUM=$(find .claude/specs -maxdepth 1 -type d -name "[0-9]*_*" | \
+    sed 's/.*\/\([0-9]\+\)_.*/\1/' | sort -n | tail -1)
+  NEXT_NUM=$((TOPIC_NUM + 1))
+
+  # Pad to 3 digits
+  NEXT_NUM_PADDED=$(printf "%03d" $NEXT_NUM)
+
+  echo "Workflow ID: $WORKFLOW_ID"
+  echo "Next topic number: $NEXT_NUM_PADDED"
+  ```
+
+  ## STEP 2: Invoke Topic Naming Subrecipe
+
+  **Pre-calculate output path** (Hard Barrier Pattern):
+  ```bash
+  mkdir -p .goose/tmp
+  TOPIC_NAME_FILE=".goose/tmp/topic_name_${WORKFLOW_ID}.txt"
+  ```
+
+  **Invoke topic-naming subrecipe**:
+  - Pass user_prompt: "{{ topic }}"
+  - Pass command_name: "research"
+  - Pass output_path: $TOPIC_NAME_FILE
+
+  **After subrecipe returns**, read the topic name:
+  ```bash
+  TOPIC_NAME=$(cat $TOPIC_NAME_FILE)
+  echo "Generated topic name: $TOPIC_NAME"
+  ```
+
+  ## STEP 3: Initialize Directory Structure
+
+  Execute the following commands to create topic directory:
+  ```bash
+  # Construct topic directory path
+  TOPIC_DIR=".claude/specs/${NEXT_NUM_PADDED}_${TOPIC_NAME}"
+
+  # Create artifact subdirectories
+  mkdir -p "$TOPIC_DIR"/{reports,plans,summaries,debug,outputs}
+
+  echo "Topic directory created: $TOPIC_DIR"
+  ```
+
+  ## STEP 4: Invoke Research Specialist Subrecipe
+
+  **Pre-calculate report path** (Hard Barrier Pattern):
+  ```bash
+  REPORT_PATH="$TOPIC_DIR/reports/001-${TOPIC_NAME}-analysis.md"
+  ```
+
+  **Invoke research-specialist subrecipe**:
+  - Pass report_path: $REPORT_PATH
+  - Pass research_topic: "{{ topic }}"
+  - Pass research_type: "codebase analysis"
+
+  **After subrecipe returns**, verify report exists:
+  ```bash
+  test -f "$REPORT_PATH" && echo "Research report created successfully"
+  ```
+
+  ## STEP 5: Return Completion Signal
+
+  After both subrecipes complete successfully, return:
+  ```
+  RESEARCH_WORKFLOW_COMPLETE
+  topic_dir: $TOPIC_DIR
+  report_path: $REPORT_PATH
+  workflow_id: $WORKFLOW_ID
+  ```
+
+sub_recipes:
+  - name: topic-naming
+    path: ./subrecipes/topic-naming.yaml
+    description: Semantic topic name generation
+
+  - name: research-specialist
+    path: ./subrecipes/research-specialist.yaml
+    description: Codebase research and report creation
+
+retry:
+  checks:
+    - type: shell
+      command: "test -d .claude/specs/*_* && ls .claude/specs/*_*/reports/*.md"
+      error_message: "Research workflow failed - topic directory or report not created"

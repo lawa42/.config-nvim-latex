@@ -86,7 +86,41 @@ See [Code Standards](.claude/docs/reference/standards/code-standards.md) for com
 - Use `validate_path_consistency()` from validation-utils.sh or inline conditional pattern
 - Anti-pattern: Direct HOME check without PROJECT_DIR context causes false positives
 - See [Path Validation Patterns](.claude/docs/reference/standards/command-authoring.md#path-validation-patterns)
+
+**Quick Reference - Plan Metadata Integration**:
+- All plan-generating commands MUST inject plan metadata standards via format_standards_for_prompt()
+- Applies to: /create-plan, /lean-plan, /repair, /revise, /debug
+- See [Plan Metadata Standard Integration](.claude/docs/reference/standards/command-authoring.md#plan-metadata-standard-integration)
 <!-- END_SECTION: code_standards -->
+
+<!-- SECTION: non_interactive_testing -->
+## Non-Interactive Testing Standards
+[Used by: /create-plan, /lean-plan, /implement, /debug, /repair, all test phases]
+
+All test phases in implementation plans must be executable automatically without manual intervention. This enables full automated execution of plans, CI/CD integration, and consistent validation across environments.
+
+**Quick Reference - Required Automation Metadata**:
+- `automation_type`: Must be "automated" (not "manual")
+- `validation_method`: Must be "programmatic" (not "visual")
+- `skip_allowed`: Must be `false` (no optional testing)
+- `artifact_outputs`: Array of test artifacts (JUnit XML, JSON reports, coverage data)
+
+**Anti-Pattern Prohibition** (NEVER use):
+- "skip for now"
+- "manually verify"
+- "optional testing"
+- "if needed"
+- "verify visually"
+- "inspect output"
+- "check results"
+
+**Enforcement**:
+- ERROR-level validator: validate-non-interactive-tests.sh
+- Pre-commit hook integration blocks commits with interactive anti-patterns
+- Plan-architect agent generates test phases with automation metadata by default
+
+See [Non-Interactive Testing Standard](.claude/docs/reference/standards/non-interactive-testing-standard.md) for complete automation requirements, validation contracts, and test phase templates.
+<!-- END_SECTION: non_interactive_testing -->
 
 <!-- SECTION: clean_break_development -->
 ## Clean-Break Development Standard
@@ -215,7 +249,7 @@ See [Adaptive Planning Configuration](.claude/docs/reference/standards/adaptive-
 
 <!-- SECTION: plan_metadata_standard -->
 ## Plan Metadata Standard
-[Used by: /create-plan, /repair, /revise, /debug, plan-architect]
+[Used by: /create-plan, /lean-plan, /repair, /revise, /debug, plan-architect]
 
 See [Plan Metadata Standard](.claude/docs/reference/standards/plan-metadata-standard.md) for complete field specifications, validation rules, workflow extensions, and integration points.
 
@@ -239,12 +273,25 @@ See [Development Workflow](.claude/docs/concepts/development-workflow.md) for co
 
 <!-- SECTION: hierarchical_agent_architecture -->
 ## Hierarchical Agent Architecture
-[Used by: /implement, /create-plan, /debug]
+[Used by: /implement, /create-plan, /debug, /lean-plan, /research]
 
 See [Hierarchical Agent Architecture Overview](.claude/docs/concepts/hierarchical-agents-overview.md) for complete patterns, utilities, templates, and troubleshooting. Documentation is split into focused modules:
 - [Coordination](.claude/docs/concepts/hierarchical-agents-coordination.md) - Multi-agent coordination patterns
 - [Communication](.claude/docs/concepts/hierarchical-agents-communication.md) - Agent communication protocols
 - [Patterns](.claude/docs/concepts/hierarchical-agents-patterns.md) - Design patterns and best practices
+- [Examples](.claude/docs/concepts/hierarchical-agents-examples.md) - Practical examples including research-coordinator pattern (Example 7)
+
+**Research Coordinator Pattern** (IMPLEMENTED as of 2025-12-08): The research-coordinator agent demonstrates supervisor-based parallel research orchestration with 95% context reduction via metadata-only passing. Integrated into `/create-plan`, `/research`, and `/lean-plan` commands for multi-topic research scenarios (complexity ≥ 3). See Example 7 in hierarchical-agents-examples.md for implementation details, hard barrier pattern integration, and performance metrics.
+
+**Lean Command Coordinator Optimization** (IMPLEMENTED as of 2025-12-08): Dual coordinator integration in Lean-specific commands achieves 95-96% context reduction and 40-60% time savings:
+- `/lean-plan`: research-coordinator enables parallel multi-topic Lean research (Mathlib, Proofs, Structure, Style) with metadata-only passing (330 tokens vs 7,500)
+- `/lean-implement`: implementer-coordinator provides wave-based orchestration with brief summary parsing (80 tokens vs 2,000)
+- Performance: 10+ iterations possible (vs 3-4 before), partial success mode (≥50% threshold), hard barrier enforcement
+- See Example 8 in hierarchical-agents-examples.md for complete architecture, code examples, and validation results (48 tests, 100% pass rate)
+
+**Migration Guide**: See [Research Coordinator Migration Guide](.claude/docs/guides/development/research-coordinator-migration-guide.md) for step-by-step instructions on integrating research-coordinator into planning commands.
+
+**Research Invocation Standards**: See [Research Invocation Standards](.claude/docs/reference/standards/research-invocation-standards.md) for decision matrix on when to use research-coordinator vs research-specialist directly.
 <!-- END_SECTION: hierarchical_agent_architecture -->
 
 <!-- SECTION: skills_architecture -->

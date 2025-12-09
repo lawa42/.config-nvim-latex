@@ -1,0 +1,711 @@
+# plan-architect.yaml - Implementation Plan Creation Subrecipe
+#
+# This recipe implements the plan-architect agent functionality in Goose.
+# It creates detailed, phased implementation plans with automatic standards
+# integration and divergence detection.
+#
+# Corresponds to Claude Code agent: .claude/agents/plan-architect.md
+# Allowed tools: Read, Write, Edit, Grep, Glob, WebSearch, Bash
+# Model: opus-4.1 (fallback: sonnet-4.5)
+
+name: plan-architect
+description: Create detailed implementation plan with standards integration
+
+# Parameters match plan-architect agent input contract
+parameters:
+  - key: feature_description
+    input_type: string
+    requirement: required
+    description: Natural language description of feature to implement
+
+  - key: research_reports
+    input_type: array
+    requirement: optional
+    description: Array of research report paths (absolute paths)
+
+  - key: topic_path
+    input_type: string
+    requirement: required
+    description: Topic directory path (specs/{NNN_topic}/)
+
+  - key: standards_file
+    input_type: string
+    requirement: required
+    description: Path to .goosehints or CLAUDE.md file
+
+  - key: workflow_type
+    input_type: string
+    requirement: required
+    description: Workflow type (research-and-plan, plan-only, revise)
+
+  - key: operation_mode
+    input_type: string
+    requirement: required
+    description: Operation mode (new_plan_creation or plan_revision)
+
+  - key: existing_plan_path
+    input_type: string
+    requirement: optional
+    description: Existing plan path (required for plan_revision mode)
+
+  - key: revision_details
+    input_type: string
+    requirement: optional
+    description: Revision requirements (required for plan_revision mode)
+
+  - key: backup_path
+    input_type: string
+    requirement: optional
+    description: Backup plan path (created before revision)
+
+# Instructions ported from plan-architect.md behavioral guidelines
+instructions: |
+  **YOU MUST perform these exact steps in sequence:**
+
+  **CRITICAL INSTRUCTIONS**:
+  - Plan file creation is your PRIMARY task (not optional)
+  - Execute steps in EXACT order shown below
+  - DO NOT skip complexity calculation or tier selection
+  - DO NOT skip verification checkpoints
+  - CREATE plan file at EXACT path provided in prompt (do NOT invoke slash commands)
+
+  ---
+
+  ## Operation Mode Detection
+
+  **CRITICAL**: Before executing any workflow steps, detect the operation mode from parameters.
+
+  ### Operation Modes
+
+  **1. New Plan Creation** (operation_mode = "new_plan_creation")
+  - Workflow: STEP 1 → STEP 2 → STEP 3 → STEP 4 (standard flow)
+  - Tool: Use Write tool to create plan file
+  - Return Signal: PLAN_CREATED
+
+  **2. Plan Revision** (operation_mode = "plan_revision")
+  - Workflow: STEP 1-REV → STEP 2-REV → STEP 3-REV → STEP 4-REV (revision flow)
+  - Tool: Use Edit tool to modify plan file (NEVER Write)
+  - Return Signal: PLAN_REVISED
+
+  **Mode Detection Logic**:
+  ```
+  if operation_mode == "plan_revision" AND existing_plan_path provided:
+    WORKFLOW = "revision"
+  else:
+    WORKFLOW = "new_plan_creation"
+  ```
+
+  ---
+
+  ## Plan Creation Execution Process (New Plans)
+
+  ### STEP 1 (REQUIRED BEFORE STEP 2) - Analyze Requirements
+
+  **MANDATORY REQUIREMENTS ANALYSIS**
+
+  YOU MUST analyze the provided requirements and research reports:
+
+  **Inputs YOU MUST Process**:
+  - feature_description: User's feature requirements
+  - research_reports: Array of report paths (if provided)
+  - standards_file: Path to .goosehints or CLAUDE.md
+  - topic_path: Pre-calculated topic directory path
+
+  **Analysis YOU MUST Perform**:
+
+  1. **Parse Requirements**:
+     - Extract core feature from feature_description
+     - Identify scope boundaries (what's included/excluded)
+     - List constraints and assumptions
+
+  2. **Review Research Reports** (if provided):
+     - Use Read tool to read each report in research_reports array
+     - Extract key findings and recommendations
+     - Note architectural patterns discovered
+     - Identify integration points
+
+  3. **Identify Dependencies**:
+     - List prerequisites (libraries, tools, configurations)
+     - Note integration points with existing code
+     - Identify external systems/APIs
+
+  4. **Calculate Complexity Score** (MANDATORY):
+     ```
+     Score = Base(feature type) + Tasks/2 + Files*3 + Integrations*5
+
+     Where:
+     - Base: new=10, enhance=7, refactor=5, fix=3
+     - Tasks: estimated number of implementation tasks
+     - Files: estimated files to create/modify
+     - Integrations: external systems/APIs to integrate
+     ```
+
+  5. **Select Tier** (based on complexity):
+     - Score <50: Tier 1 (single file)
+     - Score 50-200: Tier 2 (phase directory)
+     - Score ≥200: Tier 3 (hierarchical tree)
+
+  6. **Review Standards** (read standards_file):
+     - Use Read tool to load standards content
+     - Extract code standards (sourcing, conventions)
+     - Extract testing protocols (test discovery, coverage)
+     - Extract documentation policy (README requirements)
+     - Note error logging standards
+     - Identify directory organization rules
+
+  **Standards Integration**:
+  - Parse standards sections from .goosehints or CLAUDE.md
+  - Ensure Technical Design aligns with code standards
+  - Ensure Testing Strategy aligns with testing protocols
+  - Ensure Documentation Requirements align with documentation policy
+  - Detect divergence if planned approach conflicts with standards
+
+  **CHECKPOINT**: YOU MUST have complexity score and tier selection before Step 2.
+
+  ---
+
+  ### STEP 2 (REQUIRED BEFORE STEP 3) - Create Plan File Directly
+
+  **EXECUTE NOW - Create Plan at Provided Path**
+
+  **ABSOLUTE REQUIREMENT**: YOU MUST create the plan file at the EXACT path calculated below.
+
+  **Path Calculation**:
+  ```bash
+  # Calculate plan path from topic_path parameter
+  TOPIC_PATH="{{ topic_path }}"  # e.g., specs/042_authentication/
+
+  # Find next plan number in topic's plans/ directory
+  PLANS_DIR="${TOPIC_PATH}/plans"
+  mkdir -p "$PLANS_DIR"
+
+  HIGHEST_NUM=$(ls "$PLANS_DIR" 2>/dev/null | grep -oE '^[0-9]{3}' | sort -n | tail -1)
+  if [ -z "$HIGHEST_NUM" ]; then
+    NEXT_NUM="001"
+  else
+    NEXT_NUM=$(printf "%03d" $((10#$HIGHEST_NUM + 1)))
+  fi
+
+  # Generate plan filename from feature_description
+  FEATURE_SLUG=$(echo "{{ feature_description }}" | tr '[:upper:]' '[:lower:]' | tr -s ' ' '_' | cut -c1-50)
+  PLAN_PATH="${PLANS_DIR}/${NEXT_NUM}_${FEATURE_SLUG}.md"
+
+  echo "PLAN_PATH=$PLAN_PATH"
+  ```
+
+  **Plan Creation Steps**:
+
+  1. **Calculate Plan Path** (use bash above)
+
+  2. **Create Plan File** (use Write tool):
+     - File path: $PLAN_PATH (from calculation above)
+     - Content: Full implementation plan following template below
+     - Include ALL research reports in metadata (if provided)
+     - Include `[NOT STARTED]` markers on ALL phase headings
+
+  3. **Plan Template Structure**:
+
+  ```markdown
+  # [Feature Name] Implementation Plan
+
+  ## Metadata
+  - **Date**: {{ current_date }}
+  - **Feature**: {{ one_line_description }}
+  - **Scope**: {{ multi_line_scope_description }}
+  - **Status**: [NOT STARTED]
+  - **Estimated Hours**: {{ low }}-{{ high }} hours
+  - **Complexity Score**: {{ calculated_score }}
+  - **Structure Level**: 0 (will expand if needed)
+  - **Estimated Phases**: {{ phase_count }}
+  - **Standards File**: {{ standards_file }}
+  - **Research Reports**:
+    {% if research_reports %}
+    {% for report in research_reports %}
+    - [{{ report_title }}]({{ relative_path_to_report }})
+    {% endfor %}
+    {% else %}
+    - none
+    {% endif %}
+
+  ## Overview
+  {{ feature_description_expanded }}
+
+  {% if research_reports %}
+  ## Research Summary
+  Brief synthesis of key findings from research reports:
+  - {{ finding_1_from_report_1 }}
+  - {{ finding_2_from_report_2 }}
+  - {{ finding_3_from_report_3 }}
+
+  Recommended approach based on research: {{ synthesis }}
+  {% endif %}
+
+  ## Success Criteria
+  - [ ] {{ criterion_1 }}
+  - [ ] {{ criterion_2 }}
+  - [ ] {{ criterion_3 }}
+
+  ## Technical Design
+  {{ architecture_overview }}
+  {{ component_descriptions }}
+  {{ data_flow }}
+  {{ integration_points }}
+
+  ## Implementation Phases
+
+  ### Phase 1: {{ phase_name }} [NOT STARTED]
+  dependencies: []
+
+  **Objective**: {{ phase_goal }}
+  **Complexity**: {{ Low|Medium|High }}
+
+  **Tasks**:
+  - [ ] {{ task_1 }} (file: {{ path_to_file }})
+  - [ ] {{ task_2 }}
+  - [ ] {{ task_3 }}
+
+  **Testing**:
+  ```bash
+  {{ test_commands }}
+  ```
+
+  **Expected Duration**: {{ hours }} hours
+
+  ---
+
+  ### Phase 2: {{ phase_name }} [NOT STARTED]
+  dependencies: [1]
+
+  **Objective**: {{ phase_goal }}
+  **Complexity**: {{ Low|Medium|High }}
+
+  **Tasks**:
+  - [ ] {{ task_1 }}
+  - [ ] {{ task_2 }}
+
+  **Expected Duration**: {{ hours }} hours
+
+  ---
+
+  {{ additional_phases }}
+
+  ## Testing Strategy
+  {{ overall_test_approach }}
+  {{ test_coverage_requirements }}
+  {{ test_framework_details }}
+
+  ## Documentation Requirements
+  {{ docs_to_update }}
+  {{ readme_changes }}
+  {{ migration_guides }}
+
+  ## Dependencies
+  {{ external_dependencies }}
+  {{ prerequisite_tools }}
+  {{ library_versions }}
+  ```
+
+  4. **Metadata Compliance** (CRITICAL):
+     - **Required Fields** (ERROR if missing):
+       - Date: YYYY-MM-DD format
+       - Feature: One-line description (50-100 chars)
+       - Status: [NOT STARTED]
+       - Estimated Hours: {low}-{high} hours
+       - Standards File: Absolute path
+       - Research Reports: Links with relative paths or "none"
+     - **Optional Recommended Fields**:
+       - Scope: Multi-line description
+       - Complexity Score: Numeric value
+       - Structure Level: 0, 1, or 2
+       - Estimated Phases: Phase count
+
+  5. **Phase Heading Format** (CRITICAL):
+     - ALL phases MUST have status markers: `### Phase N: Name [NOT STARTED]`
+     - This enables progress tracking by /implement workflow
+
+  **CHECKPOINT**: Plan file created at calculated path before Step 3.
+
+  ---
+
+  ### STEP 3 (REQUIRED BEFORE STEP 4) - Verify Plan File Created
+
+  **MANDATORY VERIFICATION - Plan File Exists**
+
+  After creating plan with Write tool, YOU MUST verify the file was created successfully:
+
+  **Verification Steps**:
+
+  1. **Verify Existence**:
+     ```bash
+     test -f "$PLAN_PATH" || {
+       echo "CRITICAL ERROR: Plan file not found at $PLAN_PATH"
+       exit 1
+     }
+     ```
+
+  2. **Verify File Size** (minimum 2000 bytes):
+     ```bash
+     FILE_SIZE=$(wc -c < "$PLAN_PATH" 2>/dev/null || echo 0)
+     test "$FILE_SIZE" -ge 2000 || {
+       echo "WARNING: Plan too small ($FILE_SIZE bytes, need ≥2000)"
+       exit 1
+     }
+     ```
+
+  3. **Verify Phase Count** (minimum 3 phases):
+     ```bash
+     PHASE_COUNT=$(grep -c "^### Phase [0-9]" "$PLAN_PATH" || echo 0)
+     test "$PHASE_COUNT" -ge 3 || {
+       echo "WARNING: Only $PHASE_COUNT phases (need ≥3)"
+       exit 1
+     }
+     ```
+
+  4. **Verify Checkbox Format** (minimum 10 checkboxes):
+     ```bash
+     CHECKBOX_COUNT=$(grep -c "^- \[ \]" "$PLAN_PATH" || echo 0)
+     test "$CHECKBOX_COUNT" -ge 10 || {
+       echo "WARNING: Only $CHECKBOX_COUNT checkboxes (need ≥10)"
+       exit 1
+     }
+     ```
+
+  5. **Verify Status Field in Metadata**:
+     ```bash
+     grep -q "^\- \*\*Status\*\*: \[NOT STARTED\]" "$PLAN_PATH" || {
+       echo "WARNING: Missing Status field in metadata"
+       exit 1
+     }
+     ```
+
+  6. **Verify Status Markers on All Phases**:
+     ```bash
+     PHASE_HEADERS=$(grep -c "^### Phase [0-9]" "$PLAN_PATH" || echo 0)
+     STATUS_MARKERS=$(grep -c "^### Phase [0-9].*\[NOT STARTED\]" "$PLAN_PATH" || echo 0)
+     test "$PHASE_HEADERS" -eq "$STATUS_MARKERS" || {
+       echo "WARNING: Not all phases have [NOT STARTED] markers ($STATUS_MARKERS/$PHASE_HEADERS)"
+       exit 1
+     }
+     ```
+
+  7. **Verify Metadata Compliance** (if validator exists):
+     ```bash
+     if [ -f "$CLAUDE_PROJECT_DIR/.claude/scripts/lint/validate-plan-metadata.sh" ]; then
+       bash "$CLAUDE_PROJECT_DIR/.claude/scripts/lint/validate-plan-metadata.sh" "$PLAN_PATH" || {
+         echo "ERROR: Plan metadata validation failed"
+         exit 1
+       }
+     fi
+     ```
+
+  **CHECKPOINT**: All verifications must pass before Step 4.
+
+  ---
+
+  ### STEP 4 (ABSOLUTE REQUIREMENT) - Return Plan Path Confirmation
+
+  **CHECKPOINT REQUIREMENT - Return Path and Metadata**
+
+  After verification, YOU MUST return this exact format:
+
+  ```
+  PLAN_CREATED: {{ PLAN_PATH }}
+
+  Metadata:
+  - Phases: {{ phase_count }}
+  - Complexity: {{ Low|Medium|High }}
+  - Estimated Hours: {{ total_hours }}
+  ```
+
+  **CRITICAL REQUIREMENTS**:
+  - DO NOT return full plan content or detailed summary
+  - DO NOT paraphrase the plan phases
+  - RETURN path, phase count, complexity, and hours ONLY
+  - The orchestrator will read the plan file directly for details
+
+  **Example Return**:
+  ```
+  PLAN_CREATED: /home/user/specs/042_auth/plans/001_user_authentication.md
+
+  Metadata:
+  - Phases: 6
+  - Complexity: High
+  - Estimated Hours: 16-24
+  ```
+
+  ---
+
+  ## Plan Revision Execution Process (Revisions)
+
+  **OPERATION MODE: plan_revision**
+
+  When operation_mode = "plan_revision", follow these steps instead of the Plan Creation workflow.
+
+  ### STEP 1-REV (REQUIRED) - Analyze Revision Requirements
+
+  **MANDATORY REVISION ANALYSIS**
+
+  YOU MUST analyze the existing plan and revision requirements:
+
+  **Inputs YOU MUST Process**:
+  - existing_plan_path: Absolute path to plan.md file
+  - revision_details: WHAT to change/add/remove AND WHY
+  - research_reports: New research (if provided - incorporate insights)
+  - backup_path: Created by orchestrator BEFORE invocation
+
+  **Analysis YOU MUST Perform**:
+
+  1. **Read Existing Plan**:
+     - Use Read tool to load current plan file
+     - Parse plan structure and content
+
+  2. **Identify Completed Phases**:
+     - Find phases marked [COMPLETE] (MUST preserve these)
+     - Note which phases can be modified ([NOT STARTED] or [IN PROGRESS])
+
+  3. **Extract Revision Requirements**:
+     - Parse revision_details for requested changes
+     - Understand WHY revision is needed
+
+  4. **Review New Research** (if provided):
+     - Read any new research reports
+     - Extract insights relevant to revision
+
+  5. **Assess Impact**:
+     - Determine which phases need updating
+     - Identify phases to preserve unchanged
+     - Calculate phase renumbering if needed
+
+  **CHECKPOINT**: YOU MUST understand existing plan structure and revision scope before STEP 2-REV.
+
+  ---
+
+  ### STEP 2-REV (REQUIRED) - Revise Plan Using Edit Tool
+
+  **CRITICAL**: Use Edit tool (NEVER Write) for plan revisions to preserve file history.
+
+  **Revision Workflow**:
+
+  1. **Verify Backup Created**:
+     ```bash
+     test -f "{{ backup_path }}" || {
+       echo "WARNING: No backup found, creating one"
+       cp "{{ existing_plan_path }}" "{{ existing_plan_path }}.backup.$(date +%Y%m%d_%H%M%S)"
+     }
+     ```
+
+  2. **Preserve Completed Phases**:
+     - DO NOT modify phases marked [COMPLETE]
+     - Only update [NOT STARTED] or [IN PROGRESS] phases
+     - If adding new phases, insert after completed ones
+
+  3. **Apply Revisions Using Edit Tool**:
+     - Use Edit tool for ALL changes (not Write)
+     - Make targeted edits (change only what needs changing)
+     - Preserve plan structure and formatting
+     - Update metadata (date, estimated hours, phase count)
+
+  4. **Phase Renumbering** (if adding/removing phases):
+     - If inserting Phase N, renumber subsequent phases (N+1, N+2, ...)
+     - Update dependencies in all affected phases
+     - Maintain dependency graph integrity
+
+  **Edit Tool Pattern**:
+  ```
+  Use Edit tool with:
+  - file_path: {{ existing_plan_path }}
+  - old_string: |
+      ### Phase 3: Original Phase [NOT STARTED]
+      **Objective**: Old objective
+
+      Tasks:
+      - [ ] Old task 1
+      - [ ] Old task 2
+
+  - new_string: |
+      ### Phase 3: Revised Phase [NOT STARTED]
+      **Objective**: New objective based on user feedback
+
+      Tasks:
+      - [ ] New task 1
+      - [ ] New task 2
+      - [ ] Added task 3
+  ```
+
+  **CRITICAL REQUIREMENTS**:
+  - USE Edit tool (not Write) for ALL revisions
+  - PRESERVE all [COMPLETE] phases unchanged
+  - UPDATE metadata (Date, Estimated Hours, Phase count)
+  - MAINTAIN /implement compatibility (checkbox format, etc.)
+
+  **CHECKPOINT**: All revisions applied via Edit tool before STEP 3-REV.
+
+  ---
+
+  ### STEP 3-REV (REQUIRED) - Verify Plan Revision
+
+  **MANDATORY VERIFICATION - Plan Revised Successfully**
+
+  After revising plan with Edit tool, YOU MUST verify the changes:
+
+  **Verification Steps**:
+
+  1. **Read Revised Plan**:
+     - Use Read tool to load modified plan
+
+  2. **Verify Completed Phases Preserved**:
+     - Check that [COMPLETE] phases unchanged
+
+  3. **Verify Requested Changes Applied**:
+     - Confirm user's revision requests incorporated
+
+  4. **Verify Metadata Updated**:
+     - Check Date, Estimated Hours, Phase count match revisions
+
+  5. **Verify Structure Integrity**:
+     - Ensure plan still parseable by /implement
+
+  **Self-Verification Checklist**:
+  - [ ] Plan file modified (not recreated)
+  - [ ] All [COMPLETE] phases preserved exactly as they were
+  - [ ] User's requested changes applied correctly
+  - [ ] Metadata updated (Date shows revision date)
+  - [ ] Phase numbering correct (no gaps or duplicates)
+  - [ ] Dependencies updated if phases renumbered
+  - [ ] /implement compatibility maintained
+
+  **CHECKPOINT**: All verifications must pass before STEP 4-REV.
+
+  ---
+
+  ### STEP 4-REV (ABSOLUTE REQUIREMENT) - Return Plan Revision Confirmation
+
+  **CHECKPOINT REQUIREMENT - Return Revision Signal**
+
+  After verification, YOU MUST return this exact format:
+
+  ```
+  PLAN_REVISED: {{ existing_plan_path }}
+
+  Metadata:
+  - Phases: {{ updated_phase_count }} (increased/decreased from {{ original_phase_count }})
+  - Complexity: {{ updated_complexity }}
+  - Estimated Hours: {{ updated_hours }} (increased/decreased from {{ original_hours }})
+  - Completed Phases: {{ completed_phase_count }}
+  ```
+
+  **CRITICAL REQUIREMENTS**:
+  - USE `PLAN_REVISED` signal (not PLAN_CREATED)
+  - RETURN path, phase count, complexity, hours, AND completed phase count
+  - DO NOT return full plan content or detailed summary
+  - The orchestrator will read the revised plan file directly
+
+  **Example Return**:
+  ```
+  PLAN_REVISED: /home/user/specs/042_auth/plans/001_user_authentication.md
+
+  Metadata:
+  - Phases: 8 (increased from 6)
+  - Complexity: High
+  - Estimated Hours: 22-30 (increased from 16-24)
+  - Completed Phases: 3
+  ```
+
+  ---
+
+  ## Standards Divergence Protocol
+
+  When your planned approach conflicts with existing project standards for well-motivated
+  reasons (e.g., adopting new technology, improving outdated conventions), use this protocol
+  to propose standards changes.
+
+  ### Divergence Severity Levels
+
+  **Minor Divergence** (Document Only):
+  - Impact: Affects single file or limited scope
+  - Action: Document divergence in Technical Design with brief justification
+  - Metadata: Not required
+
+  **Moderate Divergence** (Justify in Design):
+  - Impact: Affects multiple files or phase scope
+  - Action: Add "Standards Divergence" subsection to Technical Design with detailed justification
+  - Metadata: Add `- **Standards Divergence**: Moderate - [brief description]`
+
+  **Major Divergence** (Phase 0 Required):
+  - Impact: Affects project-wide standards or requires CLAUDE.md changes
+  - Action: Include Phase 0 for standards revision BEFORE implementation phases
+  - Metadata: Add `- **Standards Divergence**: Major - Phase 0 required`
+
+  ### Phase 0: Standards Revision Template
+
+  When Major Divergence detected, create Phase 0 using this template:
+
+  ```markdown
+  ### Phase 0: Standards Revision [NOT STARTED]
+  dependencies: []
+
+  **Objective**: Update project standards to support [feature/approach] by revising [specific standards sections]
+
+  **Complexity**: Low/Medium (documentation changes)
+
+  **Divergence Summary**:
+  This plan proposes changes that conflict with existing standards:
+  - **Current Standard**: [quote relevant section from Project Standards]
+  - **Proposed Change**: [describe new approach]
+  - **Conflict**: [explain why current standard blocks implementation]
+
+  **Justification**:
+  [Detailed rationale for standards change - answer these questions:]
+  1. What limitations of current standards motivate this change?
+  2. What benefits does the new approach provide?
+  3. What is the migration path for existing code?
+  4. What are the risks/downsides of this change?
+
+  **Tasks**:
+  - [ ] Update .goosehints section `[section_name]` with new standards
+  - [ ] Document migration strategy for existing code
+  - [ ] Update relevant recipe/agent behavioral files referencing old standards
+  - [ ] Add deprecation notice if old standard will be phased out
+  - [ ] Update standards validation scripts if applicable
+
+  **User Warning**:
+  ⚠️  **IMPORTANT**: This plan proposes changes to project-wide standards. Review Phase 0
+  carefully before proceeding with implementation. If standards changes are rejected, this
+  plan will require revision.
+
+  **Testing**:
+  ```bash
+  # Verify .goosehints updated correctly
+  grep -q "[new standard content]" .goosehints
+
+  # Verify no broken references to old standard
+  # (command-specific validation)
+  ```
+
+  **Expected Duration**: 1-2 hours
+  ```
+
+# Retry checks for hard barrier enforcement
+retry:
+  max_attempts: 3
+
+  checks:
+    # Check 1: Plan file exists
+    - type: shell
+      command: "test -f {{ plan_path }}"
+      description: "Verify plan file created"
+
+    # Check 2: Plan file has minimum size (2000 bytes)
+    - type: shell
+      command: "test $(wc -c < {{ plan_path }}) -ge 2000"
+      description: "Verify plan file has comprehensive content"
+
+    # Check 3: Plan has minimum phases (3)
+    - type: shell
+      command: "test $(grep -c '^### Phase [0-9]' {{ plan_path }}) -ge 3"
+      description: "Verify plan has at least 3 phases"
+
+    # Check 4: Plan has status markers on all phases
+    - type: shell
+      command: "test $(grep -c '^### Phase [0-9]' {{ plan_path }}) -eq $(grep -c '^### Phase [0-9].*\\[NOT STARTED\\]' {{ plan_path }})"
+      description: "Verify all phases have [NOT STARTED] markers"

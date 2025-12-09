@@ -1,0 +1,339 @@
+name: revise
+description: Research-and-revise workflow for existing implementation plans
+
+parameters:
+  - key: existing_plan_path
+    input_type: string
+    requirement: user_prompt
+    description: Path to existing plan file to revise
+
+  - key: revision_details
+    input_type: string
+    requirement: user_prompt
+    description: Natural language description of revision requirements
+
+  - key: complexity
+    input_type: number
+    requirement: optional
+    description: Research complexity level (1-4, default 2)
+
+  - key: prompt_file
+    input_type: string
+    requirement: optional
+    description: Path to file containing long revision description
+
+instructions: |
+  You are executing a research-and-revise workflow that creates research reports based on new insights and then revises an existing implementation plan.
+
+  **Workflow Type**: research-and-revise
+  **Terminal State**: plan (after plan revision complete)
+  **Expected Output**: Research reports + revised plan (with backup of original)
+
+  **CRITICAL WORKFLOW STRUCTURE** (5 steps):
+
+  ====================================================================
+  STEP 1: VALIDATE EXISTING PLAN
+  ====================================================================
+
+  **Objective**: Verify existing plan file exists and is valid before proceeding
+
+  **Actions**:
+  1. Verify existing_plan_path file exists
+  2. Verify file size ≥500 bytes (must be substantive plan)
+  3. Extract topic_path from plan path (parent directory of plans/)
+  4. Set default complexity to 2 if not provided
+  5. Initialize workflow state for research-and-revise
+
+  **Shell Validation Commands**:
+  ```bash
+  # Verify plan exists
+  test -f {{ existing_plan_path }}
+
+  # Verify plan size
+  [ $(wc -c < {{ existing_plan_path }}) -ge 500 ]
+
+  # Extract topic path
+  TOPIC_PATH=$(dirname $(dirname {{ existing_plan_path }}))
+  echo $TOPIC_PATH
+
+  # Set complexity
+  COMPLEXITY={{ complexity | default: 2 }}
+  ```
+
+  **Error Handling**:
+  - If plan not found → ERROR: "Existing plan not found: {{ existing_plan_path }}"
+  - If plan too small → ERROR: "Plan file too small (must be ≥500 bytes)"
+
+  **Checkpoint Output**:
+  ```
+  CHECKPOINT: Plan validation complete
+  - Plan path: {{ existing_plan_path }}
+  - Topic path: {{ topic_path }}
+  - Complexity: {{ complexity }}
+  - Ready for: Research phase
+  ```
+
+  ====================================================================
+  STEP 2: RESEARCH PHASE
+  ====================================================================
+
+  **Objective**: Conduct research to inform plan revisions
+
+  **Actions**:
+  1. Calculate research_dir path: {{ topic_path }}/reports/
+  2. Initialize state machine: NOT_STARTED → RESEARCH
+  3. Invoke research-specialist subrecipe with:
+     - topic: "revision insights for {{ existing_plan_path }}"
+     - topic_path: {{ topic_path }}
+     - research_dir: {{ research_dir }}
+     - complexity: {{ complexity }}
+     - research_focus: {{ revision_details }}
+  4. Verify research report(s) created in research_dir
+
+  **Subrecipe Invocation**:
+  - Recipe: ./subrecipes/research-specialist.yaml
+  - Pass parameters: topic_path, research_dir, complexity, revision_details
+
+  **Hard Barrier Validation**:
+  ```bash
+  # Verify research_dir exists
+  test -d {{ research_dir }}
+
+  # Verify at least one report created
+  [ $(find {{ research_dir }} -name '*.md' -type f | wc -l) -ge 1 ]
+
+  # Verify report size ≥500 bytes
+  LATEST_REPORT=$(find {{ research_dir }} -name '*.md' -type f -printf '%T@ %p\n' | sort -rn | head -1 | cut -d' ' -f2-)
+  [ $(wc -c < "$LATEST_REPORT") -ge 500 ]
+  ```
+
+  **Error Recovery**:
+  - If no reports created → ERROR: "Research-specialist failed to create report"
+  - If report too small → ERROR: "Research report too small (must be ≥500 bytes)"
+
+  **Checkpoint Output**:
+  ```
+  CHECKPOINT: Research phase complete
+  - State transition: RESEARCH ✓
+  - Reports created: {{ report_count }}
+  - Latest report: {{ latest_report_path }}
+  - Ready for: Plan revision phase
+  ```
+
+  ====================================================================
+  STEP 3: CREATE BACKUP
+  ====================================================================
+
+  **Objective**: Create timestamped backup of existing plan before revision
+
+  **Actions**:
+  1. Create backup directory: {{ topic_path }}/plans/backups/
+  2. Generate timestamp: YYYYMMDD_HHMMSS
+  3. Create backup filename: {{ plan_basename }}_{{ timestamp }}.md
+  4. Copy existing plan to backup location
+  5. Verify backup created and size matches original
+
+  **Shell Commands**:
+  ```bash
+  # Create backup directory
+  BACKUP_DIR=$(dirname {{ existing_plan_path }})/backups
+  mkdir -p "$BACKUP_DIR"
+
+  # Generate timestamp
+  TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+
+  # Create backup filename
+  PLAN_BASENAME=$(basename {{ existing_plan_path }} .md)
+  BACKUP_FILENAME="${PLAN_BASENAME}_${TIMESTAMP}.md"
+  BACKUP_PATH="$BACKUP_DIR/$BACKUP_FILENAME"
+
+  # Copy plan to backup
+  cp {{ existing_plan_path }} "$BACKUP_PATH"
+
+  # Verify backup created
+  test -f "$BACKUP_PATH"
+
+  # Verify backup size ≥100 bytes
+  [ $(wc -c < "$BACKUP_PATH") -ge 100 ]
+
+  # Export for next step
+  echo "$BACKUP_PATH"
+  ```
+
+  **Error Handling**:
+  - If backup creation fails → ERROR: "Backup creation failed at {{ backup_path }}"
+  - If backup too small → ERROR: "Backup file too small ({{ file_size }} bytes)"
+
+  **Checkpoint Output**:
+  ```
+  CHECKPOINT: Backup creation complete
+  - Backup created: {{ backup_path }}
+  - Backup size: {{ file_size }} bytes
+  - Original plan: {{ existing_plan_path }}
+  - Ready for: Plan revision
+  ```
+
+  ====================================================================
+  STEP 4: PLAN REVISION PHASE
+  ====================================================================
+
+  **Objective**: Revise existing plan based on research insights
+
+  **Actions**:
+  1. Collect research report paths from research_dir
+  2. Transition state machine: RESEARCH → PLAN
+  3. Invoke plan-architect subrecipe in revision mode with:
+     - operation_mode: "plan_revision"
+     - existing_plan_path: {{ existing_plan_path }}
+     - backup_path: {{ backup_path }}
+     - revision_details: {{ revision_details }}
+     - research_reports: {{ report_paths_array }}
+     - standards_file: .goosehints
+     - topic_path: {{ topic_path }}
+     - workflow_type: "research-and-revise"
+  4. Verify plan file modified (different from backup)
+
+  **Subrecipe Invocation**:
+  - Recipe: ./subrecipes/plan-architect.yaml
+  - Pass parameters: operation_mode, existing_plan_path, backup_path, revision_details, research_reports, standards_file, topic_path, workflow_type
+
+  **CRITICAL INSTRUCTIONS FOR plan-architect**:
+  1. Use STEP 1-REV → STEP 2-REV → STEP 3-REV → STEP 4-REV workflow (revision flow)
+  2. Use Edit tool (NEVER Write) for all modifications to existing plan file
+  3. Preserve all [COMPLETE] phases unchanged (do not modify completed work)
+  4. Update plan metadata (Date, Estimated Hours, Phase count) to reflect revisions
+  5. Maintain /implement compatibility (checkbox format, phase markers, dependency syntax)
+
+  **Hard Barrier Validation**:
+  ```bash
+  # Verify plan file still exists
+  test -f {{ existing_plan_path }}
+
+  # Verify backup still exists
+  test -f {{ backup_path }}
+
+  # Verify plan was modified (not identical to backup)
+  ! cmp -s {{ existing_plan_path }} {{ backup_path }}
+
+  # Verify plan file size ≥500 bytes
+  [ $(wc -c < {{ existing_plan_path }}) -ge 500 ]
+  ```
+
+  **Error Recovery**:
+  - If plan unchanged → ERROR: "Plan not modified (identical to backup)"
+  - If plan disappeared → ERROR: "Plan file disappeared during revision"
+  - If plan too small → ERROR: "Plan file corrupted (too small)"
+
+  **Checkpoint Output**:
+  ```
+  CHECKPOINT: Plan revision complete
+  - State transition: PLAN ✓
+  - Plan file: {{ existing_plan_path }}
+  - Backup file: {{ backup_path }}
+  - Plan modified: ✓
+  - Ready for: Completion
+  ```
+
+  ====================================================================
+  STEP 5: WORKFLOW COMPLETION
+  ====================================================================
+
+  **Objective**: Finalize workflow and report results
+
+  **Actions**:
+  1. Transition state machine to terminal state: PLAN → COMPLETE
+  2. Calculate diff between backup and revised plan
+  3. Generate completion summary
+  4. Return completion signal
+
+  **Shell Commands**:
+  ```bash
+  # Calculate diff line count
+  DIFF_LINES=$(diff -u {{ backup_path }} {{ existing_plan_path }} | wc -l)
+
+  # Count research reports
+  REPORT_COUNT=$(find {{ research_dir }} -name '*.md' -type f | wc -l)
+
+  # Get plan file size
+  PLAN_SIZE=$(wc -c < {{ existing_plan_path }})
+  ```
+
+  **Return Signal**:
+  ```
+  WORKFLOW_COMPLETE: research-and-revise
+  plan_file: {{ existing_plan_path }}
+  backup_file: {{ backup_path }}
+  research_reports: {{ report_count }}
+  diff_lines: {{ diff_lines }}
+  plan_size: {{ plan_size }} bytes
+  ```
+
+  **Console Summary** (4-section format):
+  ```
+  ═══════════════════════════════════════════════════════════════════
+  📋 RESEARCH-AND-REVISE WORKFLOW COMPLETE
+  ═══════════════════════════════════════════════════════════════════
+
+  📊 Summary:
+  • Workflow: research-and-revise
+  • Plan File: {{ existing_plan_path }}
+  • Backup Created: {{ backup_path }}
+  • Plan Modified: ✓ ({{ diff_lines }} diff lines)
+
+  📈 Research Phase:
+  • Reports Created: {{ report_count }}
+  • Research Directory: {{ research_dir }}
+  • Complexity Level: {{ complexity }}
+
+  📦 Artifacts:
+  • Revised Plan: {{ existing_plan_path }} ({{ plan_size }} bytes)
+  • Backup: {{ backup_path }}
+  • Research Reports: {{ research_dir }}/*.md
+
+  🎯 Next Steps:
+  1. Review plan revisions: diff {{ backup_path }} {{ existing_plan_path }}
+  2. Review research reports: ls {{ research_dir }}
+  3. Implement revised plan: goose run --recipe ./implement.yaml --params plan_file={{ existing_plan_path }}
+
+  ═══════════════════════════════════════════════════════════════════
+  ```
+
+  **End of Workflow**
+
+sub_recipes:
+  - name: research-specialist
+    path: ./subrecipes/research-specialist.yaml
+
+  - name: plan-architect
+    path: ./subrecipes/plan-architect.yaml
+
+retry:
+  max_attempts: 3
+
+  checks:
+    # STEP 1: Existing plan validation
+    - type: shell
+      command: "test -f {{ existing_plan_path }} && [ $(wc -c < {{ existing_plan_path }}) -ge 500 ]"
+      message: "Existing plan validation failed"
+
+    # STEP 2: Research phase validation
+    - type: shell
+      command: "test -d {{ topic_path }}/reports && [ $(find {{ topic_path }}/reports -name '*.md' -type f | wc -l) -ge 1 ]"
+      message: "Research phase validation failed (no reports created)"
+
+    # STEP 3: Backup validation
+    - type: shell
+      command: "test -d {{ topic_path }}/plans/backups && [ $(find {{ topic_path }}/plans/backups -name '*.md' -type f | wc -l) -ge 1 ]"
+      message: "Backup creation validation failed"
+
+    # STEP 4: Plan revision validation (must differ from backup)
+    - type: shell
+      command: "! cmp -s {{ existing_plan_path }} $(find {{ topic_path }}/plans/backups -name '*.md' -type f -printf '%T@ %p\n' | sort -rn | head -1 | cut -d' ' -f2-)"
+      message: "Plan revision validation failed (plan unchanged from backup)"
+
+    # STEP 5: Final validation (plan still valid)
+    - type: shell
+      command: "test -f {{ existing_plan_path }} && [ $(wc -c < {{ existing_plan_path }}) -ge 500 ]"
+      message: "Final plan validation failed"
+
+  checkpoint_file: .goose/checkpoints/revise_{{ workflow_id }}.json

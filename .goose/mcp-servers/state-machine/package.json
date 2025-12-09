@@ -1,0 +1,21 @@
+{
+  "name": "state-machine-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for workflow state management (ported from workflow-state-machine.sh)",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node test.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4"
+  },
+  "keywords": [
+    "mcp",
+    "state-machine",
+    "workflow"
+  ],
+  "author": "Claude Code",
+  "license": "MIT"
+}

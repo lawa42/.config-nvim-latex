@@ -1,0 +1,49 @@
+description: Test recipe for parameter passing between parent and subrecipes
+
+parameters:
+  - key: test_input
+    input_type: string
+    requirement: required
+    description: Test input value to verify parameter passing
+
+  - key: output_file
+    input_type: string
+    requirement: optional
+    description: Optional output file path
+    default: ".goose/tmp/test-params-output.txt"
+
+instructions: |
+  You are testing parameter passing in Goose recipes.
+
+  STEP 1: Verify Parameters
+  - Confirm you received test_input: "{{ test_input }}"
+  - Confirm you received output_file: "{{ output_file }}"
+
+  STEP 2: Write Test Output
+  Execute the following command to create a test output file:
+  ```bash
+  mkdir -p .goose/tmp
+  cat > {{ output_file }} <<EOF
+  Test Parameters Received:
+  - test_input: {{ test_input }}
+  - output_file: {{ output_file }}
+  - timestamp: $(date -Iseconds)
+  EOF
+  ```
+
+  STEP 3: Verify Output
+  Execute the following command to verify the output file was created:
+  ```bash
+  test -f {{ output_file }} && echo "SUCCESS: Output file created"
+  cat {{ output_file }}
+  ```
+
+  STEP 4: Return Success Signal
+  Return this exact signal:
+  PARAMETER_TEST_COMPLETE: test_input="{{ test_input }}"
+
+retry:
+  checks:
+    - type: shell
+      command: "test -f {{ output_file }}"
+      error_message: "Output file not created at {{ output_file }}"

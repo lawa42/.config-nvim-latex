@@ -1,0 +1,307 @@
+# create-plan.yaml - Research-and-Plan Workflow Recipe
+#
+# This recipe implements the /create-plan command functionality in Goose:
+# 1. Research Phase: Invoke research-specialist to create codebase analysis
+# 2. Planning Phase: Invoke plan-architect to create implementation plan
+# 3. State Management: Track workflow state transitions
+# 4. Hard Barrier: Validate all artifacts created successfully
+#
+# Corresponds to Claude Code command: /create-plan
+# Behavioral guidelines ported from: .claude/commands/create-plan.md
+
+name: create-plan
+description: Research and create new implementation plan workflow
+
+# Parameters match Claude Code's argument pattern
+parameters:
+  - key: feature_description
+    input_type: string
+    requirement: user_prompt
+    description: Natural language description of feature to implement
+
+  - key: complexity
+    input_type: number
+    requirement: optional
+    default: 3
+    description: Research complexity level (1-4, default 3)
+
+  - key: prompt_file
+    input_type: string
+    requirement: optional
+    description: Path to file containing long feature description
+
+# Instructions ported from create-plan.md bash blocks
+instructions: |
+  You are executing a research-and-plan workflow that creates comprehensive research reports
+  and then generates a new implementation plan based on those findings.
+
+  **Workflow Type**: research-and-plan
+  **Terminal State**: plan (after planning phase complete)
+  **Expected Output**: Research reports + implementation plan in specs/NNN_topic/
+
+  ## STEP 1: Initialize Workflow State
+
+  **CRITICAL INITIALIZATION**:
+
+  Execute these steps to set up the workflow:
+
+  1. **Generate Workflow ID**:
+     ```bash
+     WORKFLOW_ID="plan_$(date +%s)"
+     echo "$WORKFLOW_ID" > .goose/tmp/plan_state_id.txt
+     ```
+
+  2. **Initialize State Machine** (use state-machine MCP server):
+     - Tool: `sm_init(workflow_id="${WORKFLOW_ID}", workflow_type="research-and-plan", description="${feature_description}")`
+     - This creates state tracking file in .goose/tmp/state_${WORKFLOW_ID}.json
+
+  3. **Validate Feature Description**:
+     - If prompt_file provided: Read file content into feature_description
+     - Verify feature_description is not empty
+     - Extract any --complexity flag from description
+
+  4. **Detect Project Directory**:
+     ```bash
+     if command -v git &>/dev/null && git rev-parse --git-dir >/dev/null 2>&1; then
+       CLAUDE_PROJECT_DIR="$(git rev-parse --show-toplevel)"
+     else
+       # Walk up directory tree to find .claude/ or .goose/
+       current_dir="$(pwd)"
+       while [ "$current_dir" != "/" ]; do
+         if [ -d "$current_dir/.claude" ] || [ -d "$current_dir/.goose" ]; then
+           CLAUDE_PROJECT_DIR="$current_dir"
+           break
+         fi
+         current_dir="$(dirname "$current_dir")"
+       done
+     fi
+
+     export CLAUDE_PROJECT_DIR
+     ```
+
+  5. **Create JSON State File**:
+     ```bash
+     STATE_FILE=".goose/tmp/state_${WORKFLOW_ID}.json"
+     cat > "$STATE_FILE" <<EOF
+     {
+       "workflow_id": "$WORKFLOW_ID",
+       "workflow_type": "research-and-plan",
+       "command_name": "/create-plan",
+       "user_args": "$feature_description",
+       "state": "NOT_STARTED",
+       "complexity": $complexity
+     }
+     EOF
+     ```
+
+  **CHECKPOINT**: Workflow state initialized before Step 2.
+
+  ---
+
+  ## STEP 2: Research Phase - Invoke Research Workflow
+
+  **EXECUTE NOW**: Use research subrecipe to create research reports.
+
+  **CRITICAL INSTRUCTIONS**:
+  1. Invoke research.yaml subrecipe (created in Phase 2)
+  2. Pass feature_description and complexity parameters
+  3. Research workflow will:
+     - Generate topic slug (via topic-naming subrecipe)
+     - Create specs/{NNN_topic}/ directory structure
+     - Invoke research-specialist to create report
+     - Validate report created (hard barrier)
+  4. Capture research outputs:
+     - topic_path: Directory path (specs/{NNN_topic}/)
+     - report_paths: List of report file paths
+
+  **State Transition** (use state-machine MCP):
+  - Before: `sm_transition(workflow_id="${WORKFLOW_ID}", target_state="RESEARCH")`
+  - After: `sm_transition(workflow_id="${WORKFLOW_ID}", target_state="PLANNING")`
+
+  **Hard Barrier Validation**:
+  After research subrecipe returns, verify artifacts exist:
+
+  ```bash
+  # Verify topic directory created
+  test -d "${topic_path}" || {
+    echo "ERROR: Topic directory not created: ${topic_path}"
+    exit 1
+  }
+
+  # Verify report created (minimum 500 bytes)
+  for report_path in ${report_paths[@]}; do
+    test -f "$report_path" || {
+      echo "ERROR: Report not created: $report_path"
+      exit 1
+    }
+
+    report_size=$(wc -c < "$report_path")
+    test "$report_size" -gt 500 || {
+      echo "ERROR: Report too small: $report_path ($report_size bytes)"
+      exit 1
+    }
+  done
+
+  echo "✓ Research phase complete (report validated)"
+  ```
+
+  **CHECKPOINT**: Research reports validated before Step 3.
+
+  ---
+
+  ## STEP 3: Standards Injection
+
+  **AUTOMATIC STANDARDS LOADING**:
+
+  Goose automatically loads .goosehints file content for project standards.
+  No explicit injection required - standards are available in your context.
+
+  **What You Have Access To**:
+  - Directory protocols (topic-based structure)
+  - Plan structure standards (metadata, phases, testing)
+  - Code standards (sourcing patterns, conventions)
+  - Testing protocols (test discovery, coverage)
+  - Documentation policy (README requirements)
+
+  **No Action Required**: Standards are already available from .goosehints.
+
+  ---
+
+  ## STEP 4: Planning Phase - Invoke Plan Architect
+
+  **EXECUTE NOW**: Use plan-architect subrecipe to create implementation plan.
+
+  **CRITICAL INSTRUCTIONS**:
+  1. Invoke plan-architect.yaml subrecipe
+  2. Pass parameters:
+     - feature_description: Original user description
+     - research_reports: Array of report paths from Step 2
+     - topic_path: Topic directory path from Step 2
+     - standards_file: Path to .goosehints (or CLAUDE.md if present)
+     - workflow_type: "research-and-plan"
+     - operation_mode: "new_plan_creation"
+  3. Plan architect will:
+     - Read all research reports
+     - Calculate complexity score
+     - Select plan tier (1, 2, or 3)
+     - Create plan file at topic_path/plans/001_*.md
+     - Verify plan structure and metadata
+     - Return PLAN_CREATED signal with path
+
+  **State Transition** (use state-machine MCP):
+  - Before: Already in PLANNING state from Step 2
+  - After: `sm_transition(workflow_id="${WORKFLOW_ID}", target_state="COMPLETE")`
+
+  **Hard Barrier Validation**:
+  After plan-architect returns, verify plan created:
+
+  ```bash
+  # Parse PLAN_CREATED signal from subrecipe output
+  PLAN_PATH=$(echo "$plan_architect_output" | grep "^PLAN_CREATED:" | cut -d: -f2- | xargs)
+
+  # Verify plan file exists
+  test -f "$PLAN_PATH" || {
+    echo "ERROR: Plan file not created: $PLAN_PATH"
+    exit 1
+  }
+
+  # Verify plan size (minimum 2000 bytes for comprehensive plan)
+  plan_size=$(wc -c < "$PLAN_PATH")
+  test "$plan_size" -gt 2000 || {
+    echo "ERROR: Plan too small: $PLAN_PATH ($plan_size bytes)"
+    exit 1
+  }
+
+  # Verify plan has phases (minimum 3)
+  phase_count=$(grep -c "^### Phase [0-9]" "$PLAN_PATH" || echo 0)
+  test "$phase_count" -ge 3 || {
+    echo "ERROR: Plan has too few phases: $phase_count (need ≥3)"
+    exit 1
+  }
+
+  # Verify plan metadata compliance (if validator exists)
+  if [ -f "$CLAUDE_PROJECT_DIR/.claude/scripts/lint/validate-plan-metadata.sh" ]; then
+    bash "$CLAUDE_PROJECT_DIR/.claude/scripts/lint/validate-plan-metadata.sh" "$PLAN_PATH" || {
+      echo "ERROR: Plan metadata validation failed"
+      exit 1
+    }
+  fi
+
+  echo "✓ Planning phase complete (plan validated)"
+  ```
+
+  **CHECKPOINT**: Plan file validated before Step 5.
+
+  ---
+
+  ## STEP 5: Return Completion Signal
+
+  **FINAL OUTPUT**:
+
+  After all validations pass, return this exact format:
+
+  ```
+  WORKFLOW_COMPLETE: research-and-plan
+
+  Artifacts Created:
+  - Topic Directory: ${topic_path}
+  - Research Reports: ${report_count} report(s)
+  - Implementation Plan: ${PLAN_PATH}
+
+  Plan Metadata:
+  - Phases: ${phase_count}
+  - Complexity: ${complexity_level}
+  - Estimated Hours: ${estimated_hours}
+
+  Next Steps:
+  1. Review plan at ${PLAN_PATH}
+  2. Run: goose run --recipe .goose/recipes/implement.yaml --params plan_path="${PLAN_PATH}"
+  3. Or run: goose run --recipe .goose/recipes/revise.yaml --params plan_path="${PLAN_PATH}" (to revise plan)
+  ```
+
+  **CRITICAL REQUIREMENTS**:
+  - Return signal format enables orchestration detection
+  - Artifact paths allow downstream workflows to continue
+  - Plan metadata provides summary without reading file
+  - Next steps guide user to implementation
+
+# Subrecipes invoked during workflow
+sub_recipes:
+  - name: research-specialist
+    path: ./subrecipes/research-specialist.yaml
+    description: Phase 1 - Research phase (codebase analysis and report creation)
+
+  - name: plan-architect
+    path: ./subrecipes/plan-architect.yaml
+    description: Phase 2 - Planning phase (implementation plan creation)
+
+# Hard barrier enforcement via retry checks
+retry:
+  max_attempts: 3
+
+  # Validation checks run after recipe completes
+  checks:
+    # Check 1: Topic directory exists
+    - type: shell
+      command: "test -d {{ topic_path }}"
+      description: "Verify topic directory created"
+
+    # Check 2: Research report exists and has content
+    - type: shell
+      command: "test -f {{ report_path }} && test $(wc -c < {{ report_path }}) -gt 500"
+      description: "Verify research report created with minimum size"
+
+    # Check 3: Plan file exists and has content
+    - type: shell
+      command: "test -f {{ plan_path }} && test $(wc -c < {{ plan_path }}) -gt 2000"
+      description: "Verify implementation plan created with minimum size"
+
+    # Check 4: Plan has required phases
+    - type: shell
+      command: "test $(grep -c '^### Phase [0-9]' {{ plan_path }}) -ge 3"
+      description: "Verify plan has at least 3 phases"
+
+# Checkpoint for workflow resumption
+checkpoint:
+  enabled: true
+  file: ".goose/checkpoints/create_plan_{{ workflow_id }}.json"

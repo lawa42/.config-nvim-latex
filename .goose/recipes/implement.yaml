@@ -1,0 +1,344 @@
+name: implement
+description: Implementation-only workflow - Execute plan phases without testing
+
+parameters:
+  - key: plan_file
+    input_type: string
+    requirement: user_prompt
+    description: Path to implementation plan file
+
+  - key: starting_phase
+    input_type: number
+    requirement: optional
+    description: Phase number to start from (default 1)
+
+  - key: max_iterations
+    input_type: number
+    requirement: optional
+    description: Maximum number of iterations (default 5)
+
+  - key: context_threshold
+    input_type: number
+    requirement: optional
+    description: Context exhaustion threshold percentage (default 90)
+
+  - key: iteration
+    input_type: number
+    requirement: optional
+    description: Current iteration number (for resume, default 1)
+
+  - key: continuation_context
+    input_type: string
+    requirement: optional
+    description: Path to continuation context file from previous iteration
+
+instructions: |
+  You are executing an implementation-only workflow that takes an existing implementation plan and executes it through implementation phases only (no testing/debugging phases).
+
+  **Workflow Type**: implement-only
+  **Terminal State**: implement (with option to continue to complete)
+  **Expected Input**: Existing plan file path
+  **Expected Output**: Implemented features with tests written (but not executed)
+
+  **CRITICAL WORKFLOW STRUCTURE** (3 steps):
+
+  ====================================================================
+  STEP 1: VALIDATE PLAN AND INITIALIZE WORKFLOW
+  ====================================================================
+
+  **Objective**: Verify plan file exists, extract topic path, and initialize workflow state
+
+  **Actions**:
+  1. Verify plan_file exists and is readable
+  2. Verify plan file size ≥2000 bytes (must be substantive plan)
+  3. Extract topic_path from plan file path (parent directory of plans/)
+  4. Set defaults:
+     - starting_phase: {{ starting_phase | default: 1 }}
+     - max_iterations: {{ max_iterations | default: 5 }}
+     - context_threshold: {{ context_threshold | default: 90 }}
+     - iteration: {{ iteration | default: 1 }}
+  5. Create topic artifact directories if missing:
+     - {{ topic_path }}/summaries/
+     - {{ topic_path }}/debug/
+     - {{ topic_path }}/outputs/
+  6. Initialize state machine: NOT_STARTED → IMPLEMENTATION
+
+  **Shell Validation Commands**:
+  ```bash
+  # Verify plan exists
+  test -f {{ plan_file }}
+
+  # Verify plan size
+  [ $(wc -c < {{ plan_file }}) -ge 2000 ]
+
+  # Extract topic path (parent of plans/ directory)
+  TOPIC_PATH=$(dirname $(dirname {{ plan_file }}))
+  echo $TOPIC_PATH
+
+  # Create artifact directories
+  mkdir -p "$TOPIC_PATH/summaries"
+  mkdir -p "$TOPIC_PATH/debug"
+  mkdir -p "$TOPIC_PATH/outputs"
+
+  # Verify directories created
+  test -d "$TOPIC_PATH/summaries"
+  test -d "$TOPIC_PATH/debug"
+  test -d "$TOPIC_PATH/outputs"
+  ```
+
+  **Error Handling**:
+  - If plan not found → ERROR: "Plan file not found: {{ plan_file }}"
+  - If plan too small → ERROR: "Plan file too small (must be ≥2000 bytes)"
+  - If directory creation fails → ERROR: "Failed to create artifact directories"
+
+  **Checkpoint Output**:
+  ```
+  CHECKPOINT: Plan validation complete
+  - Plan file: {{ plan_file }}
+  - Topic path: {{ topic_path }}
+  - Starting phase: {{ starting_phase }}
+  - Iteration: {{ iteration }}/{{ max_iterations }}
+  - Context threshold: {{ context_threshold }}%
+  - Ready for: Implementation phase
+  ```
+
+  ====================================================================
+  STEP 2: IMPLEMENTATION PHASE EXECUTION
+  ====================================================================
+
+  **Objective**: Execute plan phases through implementer-coordinator subrecipe
+
+  **Actions**:
+  1. Prepare artifact paths for implementer-coordinator:
+     - reports: {{ topic_path }}/reports/
+     - plans: {{ topic_path }}/plans/
+     - summaries: {{ topic_path }}/summaries/
+     - debug: {{ topic_path }}/debug/
+     - outputs: {{ topic_path }}/outputs/
+     - checkpoints: .goose/checkpoints/
+  2. Invoke implementer-coordinator subrecipe with:
+     - plan_path: {{ plan_file }}
+     - topic_path: {{ topic_path }}
+     - summaries_dir: {{ topic_path }}/summaries/
+     - artifact_paths: (as above)
+     - continuation_context: {{ continuation_context | default: null }}
+     - iteration: {{ iteration }}
+     - starting_phase: {{ starting_phase }}
+     - workflow_type: "implement-only"
+     - execution_mode: "wave-based"
+     - max_iterations: {{ max_iterations }}
+     - context_threshold: {{ context_threshold }}
+  3. Wait for implementer-coordinator to complete
+  4. Parse return signal for completion status
+
+  **Subrecipe Invocation**:
+  - Recipe: ./subrecipes/implementer-coordinator.yaml
+  - Pass all parameters listed above
+  - Wait for IMPLEMENTATION_COMPLETE signal
+
+  **Hard Barrier Validation** (after subrecipe returns):
+  ```bash
+  # Verify summary file created in summaries/ directory
+  SUMMARY_COUNT=$(find {{ topic_path }}/summaries -name '*.md' -type f | wc -l)
+  [ $SUMMARY_COUNT -ge 1 ]
+
+  # Verify latest summary is substantive (≥1000 bytes)
+  LATEST_SUMMARY=$(find {{ topic_path }}/summaries -name '*.md' -type f -printf '%T@ %p\n' | sort -rn | head -1 | cut -d' ' -f2-)
+  [ $(wc -c < "$LATEST_SUMMARY") -ge 1000 ]
+
+  # Verify summary has Work Status section
+  grep -q "Work Status\|## Work Status" "$LATEST_SUMMARY"
+  ```
+
+  **Error Recovery**:
+  - If no summary created → ERROR: "Implementer-coordinator failed to create summary"
+  - If summary too small → ERROR: "Summary file too small (must be ≥1000 bytes)"
+  - If missing Work Status → ERROR: "Summary missing Work Status section"
+
+  **Checkpoint Output**:
+  ```
+  CHECKPOINT: Implementation phase complete
+  - State transition: IMPLEMENTATION ✓
+  - Summary created: {{ summary_path }}
+  - Phases completed: {{ phases_complete }}
+  - Work remaining: {{ work_remaining }}
+  - Context usage: {{ context_usage_percent }}%
+  - Ready for: Completion or continuation
+  ```
+
+  ====================================================================
+  STEP 3: WORKFLOW COMPLETION AND CONTINUATION LOGIC
+  ====================================================================
+
+  **Objective**: Finalize workflow and determine if continuation needed
+
+  **Actions**:
+  1. Parse implementer-coordinator return signal:
+     - IMPLEMENTATION_COMPLETE: {{ phase_count }}
+     - plan_file: {{ plan_file }}
+     - topic_path: {{ topic_path }}
+     - summary_path: {{ summary_path }}
+     - work_remaining: {{ work_remaining }}
+     - context_exhausted: {{ context_exhausted }}
+     - context_usage_percent: {{ context_usage_percent }}
+     - requires_continuation: {{ requires_continuation }}
+     - stuck_detected: {{ stuck_detected }}
+  2. If requires_continuation == true AND iteration < max_iterations:
+     - Save continuation context to file
+     - Create checkpoint for next iteration
+     - Return continuation signal
+  3. If requires_continuation == false OR iteration >= max_iterations:
+     - Transition state machine: IMPLEMENTATION → COMPLETE
+     - Generate completion summary
+     - Return completion signal
+  4. If stuck_detected == true:
+     - Log error and request manual intervention
+     - Return stuck signal
+
+  **Continuation Logic**:
+  ```bash
+  # Parse return signal
+  REQUIRES_CONTINUATION={{ requires_continuation }}
+  ITERATION={{ iteration }}
+  MAX_ITERATIONS={{ max_iterations }}
+  WORK_REMAINING="{{ work_remaining }}"
+
+  # Determine if continuation needed
+  if [ "$REQUIRES_CONTINUATION" = "true" ] && [ $ITERATION -lt $MAX_ITERATIONS ]; then
+    # Save continuation context
+    CONTINUATION_FILE="{{ topic_path }}/summaries/iteration_${ITERATION}_summary.md"
+    cp "{{ summary_path }}" "$CONTINUATION_FILE"
+
+    # Create checkpoint for next iteration
+    CHECKPOINT_FILE=".goose/checkpoints/implement_{{ workflow_id }}_iter_$((ITERATION + 1)).json"
+    cat > "$CHECKPOINT_FILE" <<EOF
+  {
+    "version": "2.1",
+    "plan_path": "{{ plan_file }}",
+    "topic_path": "{{ topic_path }}",
+    "iteration": $((ITERATION + 1)),
+    "max_iterations": {{ max_iterations }},
+    "continuation_context": "$CONTINUATION_FILE",
+    "last_work_remaining": "$WORK_REMAINING"
+  }
+  EOF
+
+    echo "CONTINUATION_REQUIRED: iteration $((ITERATION + 1))/$MAX_ITERATIONS"
+    echo "checkpoint: $CHECKPOINT_FILE"
+    echo "continuation_context: $CONTINUATION_FILE"
+    exit 0
+  fi
+
+  # Complete workflow
+  echo "WORKFLOW_COMPLETE: implement-only"
+  ```
+
+  **Return Signal** (on completion):
+  ```
+  WORKFLOW_COMPLETE: implement-only
+  plan_file: {{ plan_file }}
+  topic_path: {{ topic_path }}
+  summary_path: {{ summary_path }}
+  phases_completed: {{ phases_complete }}
+  iterations_used: {{ iteration }}
+  work_remaining: {{ work_remaining }}
+  ```
+
+  **Return Signal** (on continuation):
+  ```
+  CONTINUATION_REQUIRED: iteration {{ iteration + 1 }}/{{ max_iterations }}
+  checkpoint: {{ checkpoint_path }}
+  continuation_context: {{ continuation_context_path }}
+  work_remaining: {{ work_remaining }}
+  ```
+
+  **Console Summary** (4-section format, on completion):
+  ```
+  ═══════════════════════════════════════════════════════════════════
+  🚀 IMPLEMENTATION WORKFLOW COMPLETE
+  ═══════════════════════════════════════════════════════════════════
+
+  📊 Summary:
+  • Workflow: implement-only
+  • Plan File: {{ plan_file }}
+  • Phases Completed: {{ phases_complete }}
+  • Iterations Used: {{ iteration }}/{{ max_iterations }}
+
+  📈 Progress:
+  • Starting Phase: {{ starting_phase }}
+  • Phases Complete: {{ phases_complete }}
+  • Work Remaining: {{ work_remaining }}
+  • Context Usage: {{ context_usage_percent }}%
+
+  📦 Artifacts:
+  • Implementation Summary: {{ summary_path }}
+  • Outputs: {{ topic_path }}/outputs/
+  • Debug Logs: {{ topic_path }}/debug/
+
+  🎯 Next Steps:
+  1. Review summary: cat {{ summary_path }}
+  2. Review outputs: ls {{ topic_path }}/outputs/
+  3. Test implementation: goose run --recipe ./test.yaml --params plan_file={{ plan_file }}
+
+  ═══════════════════════════════════════════════════════════════════
+  ```
+
+  **Console Summary** (on continuation):
+  ```
+  ═══════════════════════════════════════════════════════════════════
+  ⏸️  IMPLEMENTATION PAUSED - CONTINUATION REQUIRED
+  ═══════════════════════════════════════════════════════════════════
+
+  📊 Status:
+  • Iteration: {{ iteration }}/{{ max_iterations }}
+  • Context Usage: {{ context_usage_percent }}%
+  • Work Remaining: {{ work_remaining }}
+
+  📦 Continuation Files:
+  • Checkpoint: {{ checkpoint_path }}
+  • Context: {{ continuation_context_path }}
+
+  🎯 Resume Implementation:
+  goose run --recipe ./implement.yaml --params plan_file={{ plan_file }} \
+    --params iteration={{ iteration + 1 }} \
+    --params continuation_context={{ continuation_context_path }}
+
+  ═══════════════════════════════════════════════════════════════════
+  ```
+
+  **End of Workflow**
+
+sub_recipes:
+  - name: implementer-coordinator
+    path: ./subrecipes/implementer-coordinator.yaml
+
+retry:
+  max_attempts: 3
+
+  checks:
+    # STEP 1: Plan validation
+    - type: shell
+      command: "test -f {{ plan_file }} && [ $(wc -c < {{ plan_file }}) -ge 2000 ]"
+      message: "Plan file validation failed"
+
+    # STEP 1: Topic directory validation
+    - type: shell
+      command: "test -d $(dirname $(dirname {{ plan_file }}))/summaries && test -d $(dirname $(dirname {{ plan_file }}))/outputs"
+      message: "Topic artifact directories validation failed"
+
+    # STEP 2: Implementation summary validation
+    - type: shell
+      command: "[ $(find $(dirname $(dirname {{ plan_file }}))/summaries -name '*.md' -type f | wc -l) -ge 1 ]"
+      message: "Implementation summary validation failed (no summary created)"
+
+    # STEP 2: Summary size validation
+    - type: shell
+      command: "LATEST=$(find $(dirname $(dirname {{ plan_file }}))/summaries -name '*.md' -type f -printf '%T@ %p\n' | sort -rn | head -1 | cut -d' ' -f2-) && [ $(wc -c < \"$LATEST\") -ge 1000 ]"
+      message: "Summary size validation failed (too small)"
+
+    # STEP 2: Summary content validation (Work Status section)
+    - type: shell
+      command: "LATEST=$(find $(dirname $(dirname {{ plan_file }}))/summaries -name '*.md' -type f -printf '%T@ %p\n' | sort -rn | head -1 | cut -d' ' -f2-) && grep -q 'Work Status\\|## Work Status' \"$LATEST\""
+      message: "Summary content validation failed (missing Work Status section)"
+
+  checkpoint_file: .goose/checkpoints/implement_{{ workflow_id }}.json

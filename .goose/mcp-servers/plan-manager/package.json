@@ -1,0 +1,21 @@
+{
+  "name": "plan-manager-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for managing plan phase markers (ported from checkbox-utils.sh)",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node test.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4"
+  },
+  "keywords": [
+    "mcp",
+    "plan-management",
+    "phase-markers"
+  ],
+  "author": "Claude Code",
+  "license": "MIT"
+}

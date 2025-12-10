@@ -13,7 +13,7 @@ description: "Research and create a new implementation plan for a feature or tas
 parameters:
   - key: feature_description
     input_type: string
-    requirement: required
+    requirement: user_prompt
     description: "Natural language description of the feature to implement"
 
   - key: complexity
@@ -72,4 +72,5 @@ instructions: |
   - Include specific file paths where changes will be made
   - Consider edge cases and error handling
 
-prompt: "Create an implementation plan for: {{ feature_description }}"
+prompt: |
+  Create an implementation plan for: {{ feature_description }}

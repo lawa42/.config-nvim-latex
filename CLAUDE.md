@@ -91,6 +91,12 @@ See [Code Standards](.claude/docs/reference/standards/code-standards.md) for com
 - All plan-generating commands MUST inject plan metadata standards via format_standards_for_prompt()
 - Applies to: /create-plan, /lean-plan, /repair, /revise, /debug
 - See [Plan Metadata Standard Integration](.claude/docs/reference/standards/command-authoring.md#plan-metadata-standard-integration)
+
+**Quick Reference - Bash Block Size Limits**:
+- All bash blocks MUST be under 400 lines (hard limit, causes preprocessing bugs)
+- Recommended: <300 lines for complex logic (safe zone)
+- Split oversized blocks at logical boundaries using state persistence
+- See [Bash Block Size Limits and Prevention](.claude/docs/reference/standards/command-authoring.md#bash-block-size-limits-and-prevention)
 <!-- END_SECTION: code_standards -->
 
 <!-- SECTION: non_interactive_testing -->
@@ -226,6 +232,40 @@ See [Directory Organization](.claude/docs/concepts/directory-organization.md) fo
 **Quick Summary**: `.claude/` contains scripts/ (standalone tools), lib/ (sourced functions), commands/ (slash commands), agents/ (AI assistants), skills/ (model-invoked capabilities), docs/ (documentation), and tests/ (test suites).
 <!-- END_SECTION: directory_organization -->
 
+<!-- SECTION: concurrent_execution_safety -->
+## Concurrent Execution Safety
+[Used by: all commands]
+
+Commands must support concurrent execution of multiple instances without state interference. This enables users to run multiple command invocations simultaneously (e.g., two `/create-plan` commands) without "Failed to restore WORKFLOW_ID" errors.
+
+**Quick Reference**:
+- **Block 1**: Use `WORKFLOW_ID=$(generate_unique_workflow_id "command_name")` for nanosecond-precision timestamps
+- **Block 2+**: Use `STATE_FILE=$(discover_latest_state_file "command_name")` for state restoration
+- **Anti-Pattern**: NEVER use shared state ID files (e.g., `plan_state_id.txt`)
+
+**Three-Part Concurrent-Safe Pattern**:
+1. Nanosecond-precision WORKFLOW_ID generation (`date +%s%N`)
+2. No shared state ID files (WORKFLOW_ID embedded in state file)
+3. State file discovery via pattern matching (most recent by mtime)
+
+**Testing Requirements**:
+- Commands must pass concurrent execution tests (2, 3, 5 instances)
+- No "Failed to restore WORKFLOW_ID" errors
+- All instances complete successfully
+- WORKFLOW_IDs unique across all instances
+
+**Validation**:
+```bash
+# Detect shared state ID file anti-pattern
+bash .claude/scripts/lint/lint-shared-state-files.sh .claude/commands/*.md
+
+# Integrated validation
+bash .claude/scripts/validate-all-standards.sh --concurrency
+```
+
+See [Concurrent Execution Safety Standard](.claude/docs/reference/standards/concurrent-execution-safety.md) for complete pattern details, collision probability analysis, and troubleshooting guide. See [Command Authoring Standards](.claude/docs/reference/standards/command-authoring.md#concurrent-execution-safety) for integration patterns.
+<!-- END_SECTION: concurrent_execution_safety -->
+
 <!-- SECTION: development_philosophy -->
 ## Development Philosophy
 [Used by: /refactor, /implement, /create-plan, /document]
@@ -280,6 +320,16 @@ See [Hierarchical Agent Architecture Overview](.claude/docs/concepts/hierarchica
 - [Communication](.claude/docs/concepts/hierarchical-agents-communication.md) - Agent communication protocols
 - [Patterns](.claude/docs/concepts/hierarchical-agents-patterns.md) - Design patterns and best practices
 - [Examples](.claude/docs/concepts/hierarchical-agents-examples.md) - Practical examples including research-coordinator pattern (Example 7)
+
+**Architecture Standards**:
+- [Choosing Agent Architecture](.claude/docs/guides/architecture/choosing-agent-architecture.md) - Decision framework for hierarchical vs flat agent models
+- [Three-Tier Coordination Pattern](.claude/docs/concepts/three-tier-coordination-pattern.md) - Commands → Coordinators → Specialists pattern
+- [Coordinator Patterns Standard](.claude/docs/reference/standards/coordinator-patterns-standard.md) - Five core coordinator patterns
+- [Coordinator Return Signals](.claude/docs/reference/standards/coordinator-return-signals.md) - Standardized return signal contracts
+- [Artifact Metadata Standard](.claude/docs/reference/standards/artifact-metadata-standard.md) - Metadata schema for 95%+ context reduction
+- [Brief Summary Format](.claude/docs/reference/standards/brief-summary-format.md) - 96% context reduction via brief summaries
+- [State System Patterns](.claude/docs/concepts/state-system-patterns.md) - Workflow state machine and cross-block persistence
+- [Error Logging Standard](.claude/docs/reference/standards/error-logging-standard.md) - Centralized error logging and debugging workflows
 
 **Research Coordinator Pattern** (IMPLEMENTED as of 2025-12-08): The research-coordinator agent demonstrates supervisor-based parallel research orchestration with 95% context reduction via metadata-only passing. Integrated into `/create-plan`, `/research`, and `/lean-plan` commands for multi-topic research scenarios (complexity ≥ 3). See Example 7 in hierarchical-agents-examples.md for implementation details, hard barrier pattern integration, and performance metrics.
 

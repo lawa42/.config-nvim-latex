@@ -42,23 +42,48 @@ tools:
 4.  **Delegate Execution** (REQUIRED - DO NOT SKIP):
     -   You MUST use the `task` tool to delegate research to the research-specialist agent.
     -   Do NOT do the research yourself - you are a coordinator, not a researcher.
-    -   For EACH sub-topic file created in step 3, invoke the task tool like this:
+    -   For EACH sub-topic file created in step 3, invoke the task tool with this EXACT prompt format:
         ```
         task tool with these parameters:
         - subagent_type: "research-specialist"
         - description: "Research [topic name]"
-        - prompt: "Research the topic defined in [ABSOLUTE PATH to .md file].
-                   Use webfetch to fetch relevant web pages (GitHub, Reddit, docs, etc.).
-                   Update the file with your findings, adding a '## Summary' section at the top.
-                   Then append a summary with a link to OVERVIEW.md in the same directory."
+        - prompt: "Research the topic in [ABSOLUTE_PATH].
+
+                   MANDATORY: You must call write TWICE:
+                   1. Write [ABSOLUTE_PATH] with ## Summary, ## Findings, ## Sources
+                   2. Write [DIRECTORY]/OVERVIEW.md appending a section with markdown link [FILENAME](FILENAME)
+
+                   Steps:
+                   1. Read [ABSOLUTE_PATH] for the topic
+                   2. Use webfetch on relevant URLs (GitHub, Reddit, etc.)
+                   3. WRITE the report file with findings (even if webfetch was limited)
+                   4. Read OVERVIEW.md, append summary with link [FILENAME](FILENAME), WRITE it
+
+                   You have FAILED if you finish without calling write twice."
         ```
+        Replace [ABSOLUTE_PATH], [DIRECTORY], and [FILENAME] with actual values.
+        Example: If file is `/home/user/.opencode/specs/015_topic/03_comparison.md`:
+        - ABSOLUTE_PATH = `/home/user/.opencode/specs/015_topic/03_comparison.md`
+        - DIRECTORY = `/home/user/.opencode/specs/015_topic`
+        - FILENAME = `03_comparison.md`
     -   Wait for each task to complete before starting the next one.
     -   The specialist will use webfetch to research and update each file.
 
 5.  **Finalize**:
     -   Once all specialists have finished, read the `OVERVIEW.md` file.
     -   Write a final executive summary (3-5 sentences) synthesizing all the research findings.
-    -   Use the `write` tool to update OVERVIEW.md, adding a `## Executive Summary` section at the TOP of the file (before all other content), containing your synthesis.
+    -   Use the `write` tool to update OVERVIEW.md, inserting a `## Executive Summary` section IMMEDIATELY AFTER the title heading (`# Research Topic: ...`) but BEFORE the `## Original Request:` section. The file structure should be:
+        ```markdown
+        # Research Topic: [Topic]
+
+        ## Executive Summary
+        [Your 3-5 sentence synthesis]
+
+        ## Original Request:
+        [Original request text]
+
+        ### [Sub-topic sections...]
+        ```
     -   Present the final location of the research (the project directory) and the executive summary to the user.
 
 **Tools**:

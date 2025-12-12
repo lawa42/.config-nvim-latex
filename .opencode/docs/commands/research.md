@@ -6,45 +6,39 @@
 ```
 
 ## Description
-The `/research` command initiates a deep research workflow on a specified topic. It uses a coordinator-worker agent pattern to decompose the topic into sub-questions and execute them sequentially.
+Initiates a research workflow using a coordinator-worker pattern. The coordinator decomposes the topic into sub-questions, delegates each to a research specialist, and synthesizes an executive summary.
 
-## Folder Structure
-The command creates a structured output directory for each research session:
-
+## Output Structure
 ```
 .opencode/specs/
-├── NNN_topic_slug/          # Project directory (e.g., 001_agent_patterns)
-│   ├── OVERVIEW.md          # Main summary and entry point
-│   ├── 01_subtopic.md       # Sub-report (researched)
-│   ├── 02_subtopic.md       # Sub-report (researched)
-│   └── ...
+├── .counter                 # Project ID counter
+└── NNN_topic_slug/          # Project directory (e.g., 012_api_comparison)
+    ├── OVERVIEW.md          # Executive summary + links to sub-reports
+    ├── 01_subtopic.md       # Sub-report with ## Summary section
+    ├── 02_subtopic.md
+    └── ...
 ```
-
-Project IDs are assigned atomically using `mkdir` - safe for concurrent use across multiple opencode instances.
 
 ## Workflow
-1.  **Coordinator**: The `research-coordinator` agent receives the request via the `agent:` frontmatter field.
-2.  **Initialization**: It atomically claims the next project number using `mkdir` (safe for concurrent instances).
-3.  **Decomposition**: The coordinator breaks the main topic into smaller, manageable sub-topics (1-5).
-4.  **Delegation**: For each sub-topic, the coordinator uses the `task` tool with `subagent_type: "research-specialist"`.
-5.  **Execution**: Specialists conduct research using websearch, webfetch (external) and read, glob, grep (codebase) and write findings to their report files.
-6.  **Aggregation**: Specialists append summaries to `OVERVIEW.md`.
-7.  **Completion**: The coordinator reviews the final result and reports back to the user.
+1. **Initialize**: Read `.counter`, increment, create project directory
+2. **Decompose**: Break topic into 1-5 sub-topics, create report definition files
+3. **Delegate**: Invoke `research-specialist` for each sub-topic via `task` tool
+4. **Research**: Specialists fetch web pages, write findings with `## Summary`, append to OVERVIEW.md
+5. **Finalize**: Coordinator writes `## Executive Summary` at top of OVERVIEW.md
 
-## Command Structure
-The command uses opencode's native agent delegation via frontmatter:
+## Agents
 
-```markdown
----
-description: Research a topic and generate a structured report.
-agent: research-coordinator
----
+| Agent | Mode | Purpose |
+|-------|------|---------|
+| research-coordinator | primary | Manages workflow, delegates tasks |
+| research-specialist | subagent | Fetches URLs, writes reports |
 
-[Prompt content with $ARGUMENTS placeholder]
+## Configuration
+Requires `webfetch: allow` in `opencode.json` for specialists to fetch URLs without prompts:
+```json
+{
+  "permission": {
+    "webfetch": "allow"
+  }
+}
 ```
-
-Key points:
-- `agent: research-coordinator` - Specifies which agent handles the command
-- `$ARGUMENTS` - Placeholder replaced with user-provided arguments
-
-Note: The coordinator runs as a primary agent (not subagent) because it needs to use the `task` tool to delegate to research-specialist. In opencode, the task tool is disabled within subagents to prevent infinite recursion.

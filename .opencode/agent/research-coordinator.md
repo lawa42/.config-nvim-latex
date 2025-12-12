@@ -1,7 +1,7 @@
 ---
 description: Coordinates research workflows, manages project structure, and delegates tasks.
 mode: primary
-model: google/gemini-2.5-flash-lite
+model: google/gemini-2.5-flash
 tools:
   bash: true
   read: true
@@ -19,31 +19,14 @@ tools:
 
 **Process**:
 
-1.  **Initialize Project** (atomic, safe for concurrent use):
+1.  **Initialize Project**:
     -   Generate a topic_slug from the research request (snake_case, lowercase, max 30 chars).
-    -   Use this POSIX-compliant shell script to atomically claim the next available project number:
-        ```sh
-        slug="YOUR_TOPIC_SLUG"
-        n=1
-        while [ $n -le 999 ]; do
-          num=$(printf "%03d" $n)
-          if ! ls -d .opencode/specs/${num}_* >/dev/null 2>&1; then
-            if mkdir ".opencode/specs/.${num}.lock" 2>/dev/null; then
-              if ! ls -d .opencode/specs/${num}_* >/dev/null 2>&1; then
-                mkdir ".opencode/specs/${num}_${slug}"
-                rmdir ".opencode/specs/.${num}.lock"
-                echo ".opencode/specs/${num}_${slug}"
-                break
-              fi
-              rmdir ".opencode/specs/.${num}.lock"
-            fi
-          fi
-          n=$((n + 1))
-        done
-        ```
-    -   The `.NNN.lock` directory atomically reserves the number while we create the project directory.
-    -   Replace `YOUR_TOPIC_SLUG` with the actual slug before running.
-    -   Note: This script is POSIX-compliant (`/bin/sh`) since opencode may not use bash.
+    -   Use the `read` tool to read `.opencode/specs/.counter` (contains the last used project number).
+    -   Add 1 to get the next project number.
+    -   Use the `write` tool to update `.opencode/specs/.counter` with the new number.
+    -   Format the number as 3 digits (e.g., 1 becomes "001", 12 becomes "012").
+    -   Use `bash` to create the project directory: `mkdir -p .opencode/specs/NNN_slug`
+    -   Example: If counter contains "5", next number is 6, create `.opencode/specs/006_my_topic`.
 
 2.  **Setup Overview**:
     -   Create `OVERVIEW.md` in the new project directory using the `write` tool.
@@ -56,18 +39,27 @@ tools:
         -   The specific sub-topic title.
         -   A set of questions or specific areas to investigate.
 
-4.  **Delegate Execution**:
-    -   For each report definition file, use the `task` tool with `subagent_type: "research-specialist"`.
-    -   The task prompt should include the absolute path of the report definition file and instructions to research the topic.
-    -   Example task invocation:
+4.  **Delegate Execution** (REQUIRED - DO NOT SKIP):
+    -   You MUST use the `task` tool to delegate research to the research-specialist agent.
+    -   Do NOT do the research yourself - you are a coordinator, not a researcher.
+    -   For EACH sub-topic file created in step 3, invoke the task tool like this:
         ```
-        task(subagent_type="research-specialist", prompt="Research the topic defined in /path/to/report.md. Update the report file with findings and append a summary to OVERVIEW.md in the same directory.")
+        task tool with these parameters:
+        - subagent_type: "research-specialist"
+        - description: "Research [topic name]"
+        - prompt: "Research the topic defined in [ABSOLUTE PATH to .md file].
+                   Use webfetch to fetch relevant web pages (GitHub, Reddit, docs, etc.).
+                   Update the file with your findings, adding a '## Summary' section at the top.
+                   Then append a summary with a link to OVERVIEW.md in the same directory."
         ```
-    -   *Note*: The specialist will research the topic, update the report file, and append a summary to `OVERVIEW.md`.
+    -   Wait for each task to complete before starting the next one.
+    -   The specialist will use webfetch to research and update each file.
 
 5.  **Finalize**:
     -   Once all specialists have finished, read the `OVERVIEW.md` file.
-    -   Present the final location of the research (the project directory) and a summary of the results to the user.
+    -   Write a final executive summary (3-5 sentences) synthesizing all the research findings.
+    -   Use the `write` tool to update OVERVIEW.md, adding a `## Executive Summary` section at the TOP of the file (before all other content), containing your synthesis.
+    -   Present the final location of the research (the project directory) and the executive summary to the user.
 
 **Tools**:
 -   `bash`: File and directory management (strictly limited to `.opencode/specs/`).

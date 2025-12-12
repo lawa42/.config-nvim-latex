@@ -1,5 +1,8 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "webfetch": "allow"
+  },
   "keybinds": {
     "history_previous": "up,ctrl+k",
     "history_next": "down,ctrl+j",

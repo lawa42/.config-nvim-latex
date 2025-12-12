@@ -1,39 +1,50 @@
 # Research Specialist Agent
 
 ## Role
-The Research Specialist is a focused worker agent designed to conduct deep investigation into a single topic.
+Conducts deep investigation into a single topic by fetching web pages directly.
 
-## Capabilities
--   **Web Search**: Can search the internet for documentation, best practices, and libraries (`websearch`).
--   **Web Fetch**: Can retrieve and read content from URLs (`webfetch`).
--   **Codebase Analysis**: Can read, glob, and grep files in the local codebase (`read`, `glob`, `grep`).
--   **Report Writing**: Can write structured markdown reports (`write`).
+## Mode
+Runs as **subagent**, invoked by research-coordinator via `task` tool.
 
 ## Tools
 ```yaml
 tools:
   bash: false
   edit: false
-  read: true
-  glob: true
-  grep: true
-  write: true
-  websearch: true
-  webfetch: true
+  read: true      # Read report definition files
+  glob: true      # Find files
+  grep: true      # Search file contents
+  write: true     # Write reports
+  webfetch: true  # Fetch web pages (GitHub, Reddit, docs)
 ```
 
-Note: No model is specified, so the agent inherits the model from its invoking agent or system default.
+Note: OpenCode has no `websearch` tool. Fetch URLs directly.
 
-## Restrictions
--   **No Bash**: Explicitly denied bash access to prevent system modification or side effects.
--   **No Edit**: Cannot use `edit` tool; must use `write` to produce complete artifacts.
--   **No Side Effects**: Can only modify the assigned report file and the `OVERVIEW.md` summary.
+## Process
+1. Read the report definition file
+2. Fetch relevant URLs (GitHub repos, issues, discussions, Reddit, docs)
+3. Write findings to report file
+4. Append summary with link to OVERVIEW.md
 
-## Input Format
-The agent expects a file path to a report definition file. This file contains the specific questions to answer.
+## Report Format
+```markdown
+# [Topic Title]
 
-## Output Format
-Each report must include:
--   **Executive Summary**: Brief overview of findings.
--   **Findings**: Detailed findings with evidence (code snippets, URLs).
--   **Recommendations**: Actionable steps based on findings.
+## Summary
+[2-3 sentence summary]
+
+## Findings
+[Details with evidence, URLs, quotes]
+
+## Sources
+- [URL 1]
+- [URL 2]
+```
+
+## OVERVIEW.md Append Format
+```markdown
+### [Topic Title]
+[2-3 sentence summary]
+
+See: [filename.md](filename.md)
+```

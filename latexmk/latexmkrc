@@ -3,7 +3,7 @@
 
 # PDF Generation Mode
 # 1 = pdflatex, 4 = lualatex, 5 = xelatex
-$pdf_mode = 5;  # Use XeLaTeX for Unicode and modern font support
+$pdf_mode = 1;  # Use XeLaTeX for Unicode and modern font support
 
 # Draft Mode Support
 # Set $draft_mode=1 via command line or environment for fast iteration
